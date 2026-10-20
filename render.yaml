@@ -22,7 +22,9 @@ services:
       - key: GROQ_MODEL
         value: openai/gpt-oss-120b
       - key: MONGODB_URI
-        sync: false # Set this to your MongoDB Atlas connection URI
+        sync: false # Set this to your MongoDB Atlas connection URI (or leave blank to use automatic in-memory DB)
+      - key: ALLOW_IN_MEMORY_DB
+        value: "true"
       - key: JWT_ACCESS_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
