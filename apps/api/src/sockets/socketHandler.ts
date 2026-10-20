@@ -114,9 +114,9 @@ export function setupSocketHandlers(io: SocketIOServer): void {
         }
 
         const role = isHost ? 'HOST' : 'ATTENDEE';
-        const fullName = user
-          ? (user.email ? user.email.split('@')[0] : 'Attendee')
-          : (data.fullName?.trim().slice(0, 50) || 'Guest Attendee');
+        const fullName = (data.fullName && data.fullName.trim().length > 0)
+          ? data.fullName.trim().slice(0, 50)
+          : (user?.email ? user.email.split('@')[0] : 'Attendee');
 
         socket.join(`meeting:${meetingId}`);
 

@@ -7,11 +7,13 @@ export function validateBody(schema: ZodSchema) {
       req.body = schema.parse(req.body);
       next();
     } catch (err) {
-      if (err instanceof ZodError) {
+      const isZod = err instanceof ZodError || (err as any)?.name === 'ZodError';
+      if (isZod) {
+        const errors = (err as any).errors || [];
         res.status(400).json({
           error: 'Validation failed',
-          details: err.errors.map(e => ({
-            field: e.path.join('.'),
+          details: errors.map((e: any) => ({
+            field: Array.isArray(e.path) ? e.path.join('.') : '',
             message: e.message
           }))
         });
@@ -28,11 +30,13 @@ export function validateQuery(schema: ZodSchema) {
       req.query = schema.parse(req.query);
       next();
     } catch (err) {
-      if (err instanceof ZodError) {
+      const isZod = err instanceof ZodError || (err as any)?.name === 'ZodError';
+      if (isZod) {
+        const errors = (err as any).errors || [];
         res.status(400).json({
           error: 'Validation failed for query parameters',
-          details: err.errors.map(e => ({
-            field: e.path.join('.'),
+          details: errors.map((e: any) => ({
+            field: Array.isArray(e.path) ? e.path.join('.') : '',
             message: e.message
           }))
         });

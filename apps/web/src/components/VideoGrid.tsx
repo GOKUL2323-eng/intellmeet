@@ -22,24 +22,147 @@ export const VideoGrid: React.FC<Props> = ({
   const remoteParticipants = Array.from(participants.values());
   const totalCount = remoteParticipants.length + 1; // +1 for local participant
 
-  // Determine grid layout columns
-  const getGridClass = () => {
-    if (pinnedSocketId) return 'grid-cols-1';
-    if (totalCount === 1) return 'grid-cols-1 max-w-4xl mx-auto';
-    if (totalCount === 2) return 'grid-cols-1 md:grid-cols-2 max-w-5xl mx-auto';
-    if (totalCount <= 4) return 'grid-cols-1 sm:grid-cols-2 max-w-6xl mx-auto';
-    if (totalCount <= 6) return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
-    return 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4';
-  };
-
   const pinnedParticipant = remoteParticipants.find(p => p.socketId === pinnedSocketId);
 
+  // Dynamic Grid Layout based on participant count
+  const renderGridContent = () => {
+    // Single Participant
+    if (totalCount === 1) {
+      return (
+        <div className="w-full h-full max-w-5xl max-h-full flex items-center justify-center p-1">
+          <div className="w-full h-full max-h-[80vh] aspect-video">
+            <ParticipantTile
+              isLocal
+              localStream={localStream}
+              isMuted={isMuted}
+              isCameraOff={isCameraOff}
+              isScreenSharing={isScreenSharing}
+              fullName={user?.fullName}
+              onTogglePin={() => setPinnedSocketId('local')}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    // Two Participants (Most common 1-on-1 meeting)
+    if (totalCount === 2) {
+      return (
+        <div className="w-full h-full max-w-7xl max-h-full grid grid-cols-1 md:grid-cols-2 grid-rows-2 md:grid-rows-1 gap-2.5 sm:gap-4 p-1">
+          <div className="w-full h-full min-h-0">
+            <ParticipantTile
+              isLocal
+              localStream={localStream}
+              isMuted={isMuted}
+              isCameraOff={isCameraOff}
+              isScreenSharing={isScreenSharing}
+              fullName={user?.fullName}
+              onTogglePin={() => setPinnedSocketId('local')}
+            />
+          </div>
+          {remoteParticipants.slice(0, 1).map(p => (
+            <div key={p.socketId} className="w-full h-full min-h-0">
+              <ParticipantTile
+                participant={p}
+                isSpeaking={activeSpeakerSocketId === p.socketId}
+                onTogglePin={() => setPinnedSocketId(p.socketId)}
+              />
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // 3 to 4 Participants (2x2 Grid)
+    if (totalCount <= 4) {
+      return (
+        <div className="w-full h-full max-w-6xl max-h-full grid grid-cols-1 sm:grid-cols-2 grid-rows-2 gap-2 sm:gap-3 p-1">
+          <div className="w-full h-full min-h-0">
+            <ParticipantTile
+              isLocal
+              localStream={localStream}
+              isMuted={isMuted}
+              isCameraOff={isCameraOff}
+              isScreenSharing={isScreenSharing}
+              fullName={user?.fullName}
+              onTogglePin={() => setPinnedSocketId('local')}
+            />
+          </div>
+          {remoteParticipants.map(p => (
+            <div key={p.socketId} className="w-full h-full min-h-0">
+              <ParticipantTile
+                participant={p}
+                isSpeaking={activeSpeakerSocketId === p.socketId}
+                onTogglePin={() => setPinnedSocketId(p.socketId)}
+              />
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // 5 to 6 Participants (3x2 Grid)
+    if (totalCount <= 6) {
+      return (
+        <div className="w-full h-full max-w-7xl max-h-full grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 p-1 overflow-y-auto">
+          <div className="w-full aspect-video min-h-0">
+            <ParticipantTile
+              isLocal
+              localStream={localStream}
+              isMuted={isMuted}
+              isCameraOff={isCameraOff}
+              isScreenSharing={isScreenSharing}
+              fullName={user?.fullName}
+              onTogglePin={() => setPinnedSocketId('local')}
+            />
+          </div>
+          {remoteParticipants.map(p => (
+            <div key={p.socketId} className="w-full aspect-video min-h-0">
+              <ParticipantTile
+                participant={p}
+                isSpeaking={activeSpeakerSocketId === p.socketId}
+                onTogglePin={() => setPinnedSocketId(p.socketId)}
+              />
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // 7+ Participants (Scrollable Grid)
+    return (
+      <div className="w-full h-full max-h-full grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 p-1 overflow-y-auto">
+        <div className="w-full aspect-video min-h-0">
+          <ParticipantTile
+            isLocal
+            localStream={localStream}
+            isMuted={isMuted}
+            isCameraOff={isCameraOff}
+            isScreenSharing={isScreenSharing}
+            fullName={user?.fullName}
+            onTogglePin={() => setPinnedSocketId('local')}
+          />
+        </div>
+        {remoteParticipants.map(p => (
+          <div key={p.socketId} className="w-full aspect-video min-h-0">
+            <ParticipantTile
+              participant={p}
+              isSpeaking={activeSpeakerSocketId === p.socketId}
+              onTogglePin={() => setPinnedSocketId(p.socketId)}
+            />
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
-    <div className="flex-1 w-full h-full flex items-center justify-center p-6 overflow-y-auto">
+    <div className="flex-1 w-full h-full min-h-0 min-w-0 flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-hidden relative">
       {/* If a participant is pinned */}
       {pinnedSocketId ? (
-        <div className="w-full h-full flex flex-col lg:flex-row gap-4">
-          <div className="flex-1 h-full min-h-[450px]">
+        <div className="w-full h-full min-h-0 flex flex-col md:flex-row gap-2.5 sm:gap-4">
+          {/* Main Stage Tile */}
+          <div className="flex-1 h-full min-h-0 w-full rounded-2xl overflow-hidden">
             {pinnedSocketId === 'local' ? (
               <ParticipantTile
                 isLocal
@@ -60,10 +183,10 @@ export const VideoGrid: React.FC<Props> = ({
             ) : null}
           </div>
 
-          {/* Filmstrip sidebar for other peers */}
-          <div className="lg:w-72 flex lg:flex-col gap-3 overflow-x-auto lg:overflow-y-auto">
+          {/* Filmstrip for remaining peers */}
+          <div className="h-28 md:h-full md:w-64 lg:w-72 shrink-0 flex flex-row md:flex-col gap-2 overflow-x-auto md:overflow-y-auto py-1">
             {pinnedSocketId !== 'local' && (
-              <div className="w-48 lg:w-full shrink-0">
+              <div className="w-40 md:w-full h-full md:h-auto md:aspect-video shrink-0">
                 <ParticipantTile
                   isLocal
                   localStream={localStream}
@@ -78,7 +201,7 @@ export const VideoGrid: React.FC<Props> = ({
             {remoteParticipants
               .filter(p => p.socketId !== pinnedSocketId)
               .map(p => (
-                <div key={p.socketId} className="w-48 lg:w-full shrink-0">
+                <div key={p.socketId} className="w-40 md:w-full h-full md:h-auto md:aspect-video shrink-0">
                   <ParticipantTile
                     participant={p}
                     isSpeaking={activeSpeakerSocketId === p.socketId}
@@ -89,29 +212,8 @@ export const VideoGrid: React.FC<Props> = ({
           </div>
         </div>
       ) : (
-        /* Standard Dynamic Grid */
-        <div className={`w-full grid gap-4 items-center justify-center ${getGridClass()}`}>
-          {/* Local User Tile */}
-          <ParticipantTile
-            isLocal
-            localStream={localStream}
-            isMuted={isMuted}
-            isCameraOff={isCameraOff}
-            isScreenSharing={isScreenSharing}
-            fullName={user?.fullName}
-            onTogglePin={() => setPinnedSocketId('local')}
-          />
-
-          {/* Remote Participants Tiles */}
-          {remoteParticipants.map(p => (
-            <ParticipantTile
-              key={p.socketId}
-              participant={p}
-              isSpeaking={activeSpeakerSocketId === p.socketId}
-              onTogglePin={() => setPinnedSocketId(p.socketId)}
-            />
-          ))}
-        </div>
+        /* Standard Adaptive Grid */
+        renderGridContent()
       )}
     </div>
   );

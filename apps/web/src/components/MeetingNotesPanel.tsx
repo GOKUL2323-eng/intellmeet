@@ -10,7 +10,7 @@ export const MeetingNotesPanel: React.FC<Props> = ({ onClose }) => {
   const { notes, setNotes } = useMeetingStore();
 
   return (
-    <aside className="w-80 h-full bg-slate-900/95 border-l border-white/10 flex flex-col z-20 backdrop-blur-xl">
+    <aside className="w-full md:w-80 h-full fixed md:relative inset-0 md:inset-auto bg-slate-900/98 md:bg-slate-900/95 border-l border-white/10 flex flex-col z-40 md:z-20 backdrop-blur-xl">
       <div className="h-16 px-4 border-b border-white/10 flex items-center justify-between">
         <div className="flex items-center gap-2 text-slate-200">
           <FileText className="w-4 h-4 text-violet-400" />
