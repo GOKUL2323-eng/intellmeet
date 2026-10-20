@@ -56,7 +56,16 @@ export const ParticipantTile: React.FC<Props> = ({
         playPromise
           .then(() => setIsVideoLoaded(true))
           .catch(() => {
-            // Autoplay might be temporarily restricted by browser before gesture
+            // Autoplay might be temporarily restricted on mobile prior to user interaction
+            const unlockAutoplay = () => {
+              if (videoEl) {
+                videoEl.play().then(() => setIsVideoLoaded(true)).catch(() => {});
+              }
+              window.removeEventListener('click', unlockAutoplay);
+              window.removeEventListener('touchstart', unlockAutoplay);
+            };
+            window.addEventListener('click', unlockAutoplay, { once: true });
+            window.addEventListener('touchstart', unlockAutoplay, { once: true });
           });
       }
     } else {

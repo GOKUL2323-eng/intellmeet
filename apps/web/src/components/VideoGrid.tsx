@@ -48,8 +48,8 @@ export const VideoGrid: React.FC<Props> = ({
     // Two Participants (Most common 1-on-1 meeting)
     if (totalCount === 2) {
       return (
-        <div className="w-full h-full max-w-7xl max-h-full grid grid-cols-1 md:grid-cols-2 grid-rows-2 md:grid-rows-1 gap-2.5 sm:gap-4 p-1">
-          <div className="w-full h-full min-h-0">
+        <div className="w-full h-full max-w-7xl max-h-full grid grid-cols-1 md:grid-cols-2 grid-rows-2 md:grid-rows-1 gap-2 sm:gap-4 p-1 min-h-0 overflow-hidden">
+          <div className="w-full h-full min-h-0 overflow-hidden">
             <ParticipantTile
               isLocal
               localStream={localStream}
@@ -61,7 +61,7 @@ export const VideoGrid: React.FC<Props> = ({
             />
           </div>
           {remoteParticipants.slice(0, 1).map(p => (
-            <div key={p.socketId} className="w-full h-full min-h-0">
+            <div key={p.socketId} className="w-full h-full min-h-0 overflow-hidden">
               <ParticipantTile
                 participant={p}
                 isSpeaking={activeSpeakerSocketId === p.socketId}
@@ -157,7 +157,7 @@ export const VideoGrid: React.FC<Props> = ({
   };
 
   return (
-    <div className="flex-1 w-full h-full min-h-0 min-w-0 flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-hidden relative">
+    <div className="flex-1 w-full h-full min-h-0 min-w-0 flex items-center justify-center p-1 sm:p-4 md:p-6 overflow-hidden relative">
       {/* If a participant is pinned */}
       {pinnedSocketId ? (
         <div className="w-full h-full min-h-0 flex flex-col md:flex-row gap-2.5 sm:gap-4">

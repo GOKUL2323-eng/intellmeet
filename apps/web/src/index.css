@@ -41,6 +41,15 @@
   }
 }
 
+/* Hide scrollbars for clean mobile controls */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Glassmorphism helpers */
 .glass-panel {
   background: rgba(17, 24, 39, 0.75);

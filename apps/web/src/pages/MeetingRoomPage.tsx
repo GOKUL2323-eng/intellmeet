@@ -100,7 +100,7 @@ export const MeetingRoomPage: React.FC = () => {
   const isHost = meeting?.hostId?._id === user?.id || meeting?.hostId === user?.id;
 
   return (
-    <div className="h-screen h-[100dvh] w-screen bg-[#070A12] text-slate-100 flex flex-col overflow-hidden relative select-none">
+    <div className="fixed inset-0 w-full h-[100dvh] max-h-screen bg-[#070A12] text-slate-100 flex flex-col overflow-hidden select-none">
       {/* Top Floating Room Bar */}
       <header className="h-12 sm:h-14 px-3 sm:px-6 border-b border-white/10 flex items-center justify-between bg-slate-950/80 backdrop-blur-md z-30 shrink-0">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
