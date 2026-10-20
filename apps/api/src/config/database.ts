@@ -25,7 +25,8 @@ export async function connectDatabase(): Promise<typeof mongoose> {
     const error = err as Error;
     console.warn(`⚠️ Could not connect to external MongoDB: ${error.message}`);
 
-    if (config.NODE_ENV !== 'production') {
+    const canUseMemoryFallback = config.NODE_ENV !== 'production' || process.env.ALLOW_IN_MEMORY_DB === 'true';
+    if (canUseMemoryFallback) {
       console.log('⚡ Initializing in-memory MongoDB fallback (mongodb-memory-server)...');
       try {
         const launchTimeout = parseInt(process.env.MONGODB_MEMORY_SERVER_LAUNCH_TIMEOUT || '60000', 10);
