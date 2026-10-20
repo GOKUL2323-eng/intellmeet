@@ -108,10 +108,10 @@ export const MeetingDetailsPage: React.FC = () => {
   ) || [];
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    <div className="space-y-6 max-w-6xl mx-auto w-full min-w-0">
       {/* Back button & Title Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="space-y-1">
+        <div className="space-y-1 min-w-0">
           <button
             onClick={() => navigate('/meetings')}
             className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition mb-2"
@@ -119,10 +119,10 @@ export const MeetingDetailsPage: React.FC = () => {
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Back to Meetings</span>
           </button>
-          <h1 className="text-2xl font-black text-white tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight truncate">
             {meeting?.title || 'Meeting Summary & Intelligence'}
           </h1>
-          <div className="flex items-center gap-4 text-xs text-slate-400 pt-1">
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-4 text-xs text-slate-400 pt-1">
             <span className="flex items-center gap-1">
               <Calendar className="w-3.5 h-3.5 text-violet-400" />
               <span>{meeting ? new Date(meeting.scheduledStartTime).toLocaleDateString() : ''}</span>
@@ -142,18 +142,18 @@ export const MeetingDetailsPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 shrink-0">
           <button
             onClick={handleRunAI}
             disabled={isProcessingAI}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:opacity-50 text-white font-semibold text-xs shadow-lg shadow-violet-600/30 transition"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:opacity-50 text-white font-semibold text-xs shadow-lg shadow-violet-600/30 transition shrink-0"
           >
             <Sparkles className="w-4 h-4" />
             <span>{isProcessingAI ? 'Analyzing...' : 'Generate AI Summary'}</span>
           </button>
           <button
             onClick={() => navigate(`/lobby/${meeting?.meetingCode || meetingId}`)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-white/10 transition"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-white/10 transition shrink-0"
           >
             <Video className="w-4 h-4 text-emerald-400" />
             <span>Re-join Room</span>
@@ -162,10 +162,10 @@ export const MeetingDetailsPage: React.FC = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-3 border-b border-white/10 pb-2">
+      <div className="flex items-center gap-2 border-b border-white/10 pb-2 overflow-x-auto no-scrollbar whitespace-nowrap">
         <button
           onClick={() => setActiveTab('SUMMARY')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
+          className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition shrink-0 ${
             activeTab === 'SUMMARY'
               ? 'bg-violet-600/20 text-violet-300 border border-violet-500/30'
               : 'text-slate-400 hover:text-white'
@@ -177,7 +177,7 @@ export const MeetingDetailsPage: React.FC = () => {
 
         <button
           onClick={() => setActiveTab('ACTION_ITEMS')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
+          className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition shrink-0 ${
             activeTab === 'ACTION_ITEMS'
               ? 'bg-violet-600/20 text-violet-300 border border-violet-500/30'
               : 'text-slate-400 hover:text-white'
@@ -189,7 +189,7 @@ export const MeetingDetailsPage: React.FC = () => {
 
         <button
           onClick={() => setActiveTab('TRANSCRIPT')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition ${
+          className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition shrink-0 ${
             activeTab === 'TRANSCRIPT'
               ? 'bg-violet-600/20 text-violet-300 border border-violet-500/30'
               : 'text-slate-400 hover:text-white'

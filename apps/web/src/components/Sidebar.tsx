@@ -8,11 +8,10 @@ import {
   BarChart3,
   Settings,
   ShieldCheck,
-  Sparkles
+  X
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { UserRole } from '@intellmeet/shared';
-
 import { Logo } from './Logo';
 
 const navItems = [
@@ -24,19 +23,17 @@ const navItems = [
   { to: '/settings', label: 'Settings', icon: Settings }
 ];
 
-export const Sidebar: React.FC = () => {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => {
   const { user } = useAuthStore();
   const isAdmin = user?.role === UserRole.ADMIN;
 
-  return (
-    <aside className="w-64 bg-slate-900/90 border-r border-white/10 flex flex-col h-screen fixed left-0 top-0 z-30 backdrop-blur-xl">
-      {/* Brand Header */}
-      <div className="h-16 flex items-center px-6 border-b border-white/10">
-        <NavLink to="/dashboard" className="transition hover:opacity-90">
-          <Logo size="md" subtitle="Enterprise AI" />
-        </NavLink>
-      </div>
-
+  const renderNavContent = (isMobile = false) => (
+    <>
       {/* Navigation Links */}
       <div className="flex-1 px-3 py-6 space-y-1.5 overflow-y-auto">
         <div className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
@@ -48,6 +45,7 @@ export const Sidebar: React.FC = () => {
             <NavLink
               key={item.to}
               to={item.to}
+              onClick={isMobile ? onClose : undefined}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
                   isActive
@@ -69,6 +67,7 @@ export const Sidebar: React.FC = () => {
             </div>
             <NavLink
               to="/admin"
+              onClick={isMobile ? onClose : undefined}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
                   isActive
@@ -85,7 +84,7 @@ export const Sidebar: React.FC = () => {
       </div>
 
       {/* AI Processing Status Indicator */}
-      <div className="p-4 m-3 rounded-xl bg-gradient-to-br from-violet-950/40 to-slate-900 border border-violet-500/20">
+      <div className="p-4 m-3 rounded-xl bg-gradient-to-br from-violet-950/40 to-slate-900 border border-violet-500/20 shrink-0">
         <div className="flex items-center gap-2 mb-1.5">
           <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           <span className="text-xs font-semibold text-slate-200">AI Engine Ready</span>
@@ -94,6 +93,50 @@ export const Sidebar: React.FC = () => {
           Summaries, action item detection & transcripts active.
         </p>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* 1. Desktop Fixed Sidebar */}
+      <aside className="hidden md:flex w-64 bg-slate-900/90 border-r border-white/10 flex-col h-screen fixed left-0 top-0 z-30 backdrop-blur-xl">
+        <div className="h-16 flex items-center px-6 border-b border-white/10">
+          <NavLink to="/dashboard" className="transition hover:opacity-90">
+            <Logo size="md" subtitle="Enterprise AI" />
+          </NavLink>
+        </div>
+        {renderNavContent(false)}
+      </aside>
+
+      {/* 2. Mobile Drawer Backdrop */}
+      {isOpen && (
+        <div
+          onClick={onClose}
+          className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 md:hidden animate-fadeIn"
+          aria-hidden="true"
+        />
+      )}
+
+      {/* 3. Mobile Slide-out Drawer */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-slate-900 border-r border-white/10 flex flex-col h-full transform transition-transform duration-300 ease-in-out md:hidden shadow-2xl ${
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="h-16 flex items-center justify-between px-5 border-b border-white/10">
+          <NavLink to="/dashboard" onClick={onClose} className="transition hover:opacity-90">
+            <Logo size="md" subtitle="Enterprise AI" />
+          </NavLink>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+            aria-label="Close sidebar"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        {renderNavContent(true)}
+      </aside>
+    </>
   );
 };

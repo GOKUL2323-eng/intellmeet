@@ -68,7 +68,7 @@ export const DashboardPage: React.FC = () => {
       {/* Welcome Banner */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-white tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
             Good day, {user?.fullName?.split(' ')[0] || 'Team'}
           </h1>
           <p className="text-xs text-slate-400 mt-1">
@@ -76,17 +76,17 @@ export const DashboardPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5">
           <button
             onClick={() => navigate('/meetings')}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold text-xs transition shadow-lg shadow-violet-600/25"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold text-xs transition shadow-lg shadow-violet-600/25 shrink-0"
           >
             <Video className="w-4 h-4" />
-            <span>Launch Instant Meeting</span>
+            <span>Launch Meeting</span>
           </button>
           <button
             onClick={() => navigate('/tasks')}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-white/10 text-slate-200 font-semibold text-xs transition"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-white/10 text-slate-200 font-semibold text-xs transition shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span>New Task</span>
