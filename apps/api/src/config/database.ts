@@ -14,10 +14,10 @@ export async function connectDatabase(): Promise<typeof mongoose> {
   mongoose.set('strictQuery', true);
 
   try {
-    // First try connecting to configured MONGODB_URI with a 2-second timeout
-    console.log(`🔌 Attempting connection to MongoDB at: ${config.MONGODB_URI}`);
+    // First try connecting to configured MONGODB_URI with a 15-second timeout for cloud clusters
+    console.log(`🔌 Attempting connection to MongoDB at: ${config.MONGODB_URI.replace(/:([^:@]+)@/, ':****@')}`);
     await mongoose.connect(config.MONGODB_URI, {
-      serverSelectionTimeoutMS: 2000
+      serverSelectionTimeoutMS: 15000
     });
     console.log('✅ Connected to MongoDB server successfully.');
     return mongoose;
