@@ -2,6 +2,13 @@ import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/auth.service';
 import { config } from '../config/env';
 
+const getRefreshTokenCookieOptions = () => ({
+  httpOnly: true,
+  secure: config.NODE_ENV === 'production',
+  sameSite: (config.NODE_ENV === 'production' ? 'none' : 'lax') as 'none' | 'lax',
+  path: '/'
+});
+
 export class AuthController {
   static async register(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -9,17 +16,13 @@ export class AuthController {
         email: req.body.email,
         password: req.body.password,
         fullName: req.body.fullName,
-        timezone: req.body.timezone,
         ipAddress: req.ip,
         userAgent: req.headers['user-agent']
       });
 
       // Set refresh token in HttpOnly cookie
       res.cookie('refreshToken', result.refreshToken, {
-        httpOnly: true,
-        secure: config.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
+        ...getRefreshTokenCookieOptions(),
         maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
       });
 
@@ -44,10 +47,7 @@ export class AuthController {
       });
 
       res.cookie('refreshToken', result.refreshToken, {
-        httpOnly: true,
-        secure: config.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
+        ...getRefreshTokenCookieOptions(),
         maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
       });
 
@@ -73,10 +73,7 @@ export class AuthController {
       const result = await AuthService.refreshTokens(refreshToken);
 
       res.cookie('refreshToken', result.refreshToken, {
-        httpOnly: true,
-        secure: config.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
+        ...getRefreshTokenCookieOptions(),
         maxAge: 7 * 24 * 60 * 60 * 1000
       });
 
@@ -92,12 +89,7 @@ export class AuthController {
     try {
       const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
       await AuthService.logout(refreshToken);
-      res.clearCookie('refreshToken', {
-        httpOnly: true,
-        secure: config.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/'
-      });
+      res.clearCookie('refreshToken', getRefreshTokenCookieOptions());
       res.json({ message: 'Successfully logged out.' });
     } catch (err) {
       next(err);

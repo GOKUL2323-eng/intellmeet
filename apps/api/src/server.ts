@@ -25,11 +25,17 @@ async function bootstrap() {
     const server = http.createServer(app);
 
     // 3. Initialize Socket.io
-    const allowedOrigins = config.CORS_ORIGINS.split(',').map(o => o.trim());
+    const allowedOrigins = config.CORS_ORIGINS.split(',')
+      .map(o => o.trim().replace(/\/$/, ''))
+      .filter(Boolean);
     const io = new SocketIOServer(server, {
       cors: {
         origin: (origin, callback) => {
-          if (!origin || allowedOrigins.includes(origin)) {
+          if (!origin) {
+            return callback(null, true);
+          }
+          const normalizedOrigin = origin.replace(/\/$/, '');
+          if (allowedOrigins.includes(origin) || allowedOrigins.includes(normalizedOrigin)) {
             return callback(null, true);
           }
           if (

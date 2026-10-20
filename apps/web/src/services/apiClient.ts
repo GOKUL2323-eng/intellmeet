@@ -1,4 +1,17 @@
-const API_HOST = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+const normalizeApiUrl = (url?: string): string => {
+  if (!url) return '';
+  const trimmed = url.trim().replace(/\/$/, '');
+  if (!trimmed) return '';
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+  if (trimmed.startsWith('localhost') || trimmed.startsWith('127.0.0.1')) {
+    return `http://${trimmed}`;
+  }
+  return `https://${trimmed}`;
+};
+
+const API_HOST = normalizeApiUrl(import.meta.env.VITE_API_URL);
 const API_BASE_URL = `${API_HOST}/api/v1`;
 
 class ApiClient {

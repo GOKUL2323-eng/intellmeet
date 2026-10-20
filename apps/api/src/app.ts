@@ -31,14 +31,17 @@ export function createApp(): Application {
   );
 
   // CORS allowlisting
-  const allowedOrigins = config.CORS_ORIGINS.split(',').map(o => o.trim());
+  const allowedOrigins = config.CORS_ORIGINS.split(',')
+    .map(o => o.trim().replace(/\/$/, ''))
+    .filter(Boolean);
   app.use(
     cors({
       origin: (origin, callback) => {
         if (!origin) {
           return callback(null, true);
         }
-        if (allowedOrigins.includes(origin)) {
+        const normalizedOrigin = origin.replace(/\/$/, '');
+        if (allowedOrigins.includes(origin) || allowedOrigins.includes(normalizedOrigin)) {
           return callback(null, true);
         }
         if (

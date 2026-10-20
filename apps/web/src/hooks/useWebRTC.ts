@@ -257,7 +257,14 @@ export function useWebRTC(meetingId: string, initialMuted = false, initialCamera
     const init = async () => {
       streamInstance = await startMedia();
 
-      const socketTarget = (import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+      const rawSocketTarget = (import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL || '').trim().replace(/\/$/, '');
+      const socketTarget = rawSocketTarget
+        ? (rawSocketTarget.startsWith('http://') || rawSocketTarget.startsWith('https://')
+            ? rawSocketTarget
+            : (rawSocketTarget.startsWith('localhost') || rawSocketTarget.startsWith('127.0.0.1')
+                ? `http://${rawSocketTarget}`
+                : `https://${rawSocketTarget}`))
+        : '';
       const socket = socketTarget
         ? io(socketTarget, {
             auth: { token: localStorage.getItem('intellmeet_token') },
