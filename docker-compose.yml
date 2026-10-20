@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  # MongoDB Database Service
+  mongodb:
+    image: mongo:7.0
+    container_name: intellmeet-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: intellmeet
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache & Socket Coordination (Optional)
+  redis:
+    image: redis:7-alpine
+    container_name: intellmeet-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # IntellMeet Backend API & Socket.io Server
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: intellmeet-api
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      MONGODB_URI: mongodb://mongodb:27017/intellmeet
+      JWT_ACCESS_SECRET: intellmeet-prod-access-secret-replace-me-32chars!
+      JWT_REFRESH_SECRET: intellmeet-prod-refresh-secret-replace-me-32chars!
+      CLIENT_URL: http://localhost:5173
+      CORS_ORIGINS: http://localhost:5173,http://localhost:80
+      AI_PROVIDER: ${AI_PROVIDER:-groq}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-120b}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      STUN_URLS: stun:stun.l.google.com:19302,stun:stun1.l.google.com:19302
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  # IntellMeet Frontend Web Application
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: intellmeet-web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+
+volumes:
+  mongo_data:
+  redis_data:

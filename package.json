@@ -1,0 +1,34 @@
+{
+  "name": "intellmeet-root",
+  "version": "1.0.0",
+  "private": true,
+  "description": "IntellMeet - AI-Powered Enterprise Meeting & Collaboration Platform",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=@intellmeet/api",
+    "dev:all": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "npm run dev --workspace=@intellmeet/api",
+    "dev:web": "npm run dev --workspace=@intellmeet/web",
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspace=@intellmeet/api",
+    "seed": "npm run seed --workspace=@intellmeet/api",
+    "lint": "npm run lint --workspaces"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "keywords": [
+    "webrtc",
+    "collaboration",
+    "enterprise",
+    "meetings",
+    "ai-summary",
+    "kanban",
+    "socketio"
+  ],
+  "author": "IntellMeet Core Team",
+  "license": "MIT"
+}

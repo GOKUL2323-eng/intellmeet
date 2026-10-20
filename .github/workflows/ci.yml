@@ -1,0 +1,48 @@
+name: IntellMeet CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    services:
+      mongodb:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Monorepo Dependencies
+        run: npm ci
+
+      - name: Build Shared Package
+        run: npm run build --workspace=@intellmeet/shared
+
+      - name: Run Backend Integration & Security Tests
+        run: npm run test --workspace=@intellmeet/api
+        env:
+          NODE_ENV: test
+          MONGODB_URI: mongodb://localhost:27017/intellmeet_test
+          JWT_ACCESS_SECRET: test-jwt-access-secret-32chars-minimum!
+          JWT_REFRESH_SECRET: test-jwt-refresh-secret-32chars-minimum!
+          COOKIE_SECRET: test-cookie-secret-32chars-minimum!
+
+      - name: Build Backend Production Bundle
+        run: npm run build --workspace=@intellmeet/api
+
+      - name: Build Frontend Production SPA
+        run: npm run build --workspace=@intellmeet/web

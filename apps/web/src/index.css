@@ -1,0 +1,89 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-main: #0b0f19;
+    --bg-surface: #111827;
+    --bg-card: #1e293b;
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --border-active: rgba(0, 132, 255, 0.4);
+    --brand-blue: #0084ff;
+    --brand-indigo: #6366f1;
+    --brand-purple: #8b5cf6;
+    --accent-primary: #0084ff;
+    --accent-secondary: #8b5cf6;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+  }
+
+  body {
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overflow-x: hidden;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #0f172a;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+  }
+}
+
+/* Glassmorphism helpers */
+.glass-panel {
+  background: rgba(17, 24, 39, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-card {
+  background: rgba(30, 41, 59, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.glow-accent {
+  box-shadow: 0 0 25px -5px rgba(0, 132, 255, 0.25), 0 0 20px -5px rgba(139, 92, 246, 0.25);
+}
+
+.glow-blue {
+  box-shadow: 0 0 25px -5px rgba(0, 132, 255, 0.35);
+}
+
+.glow-brand {
+  box-shadow: 0 0 35px -5px rgba(0, 132, 255, 0.3), 0 0 20px -5px rgba(139, 92, 246, 0.25);
+}
+
+.bg-brand-gradient {
+  background: linear-gradient(135deg, #0084ff 0%, #6366f1 50%, #8b5cf6 100%);
+}
+
+.text-brand-gradient {
+  background: linear-gradient(135deg, #0084ff 0%, #6366f1 50%, #a855f7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Pulsing audio wave indicator */
+@keyframes soundwave {
+  0%, 100% { height: 4px; }
+  50% { height: 16px; }
+}
+
+.wave-bar {
+  animation: soundwave 1s ease-in-out infinite;
+}
