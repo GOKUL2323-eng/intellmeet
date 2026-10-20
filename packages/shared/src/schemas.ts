@@ -56,12 +56,20 @@ export const createMeetingSchema = z.object({
     .object({
       allowGuests: z.boolean().default(true),
       waitingRoom: z.boolean().default(false),
-      defaultMute: z.boolean().default(false)
+      defaultMute: z.boolean().default(false),
+      allowScreenShare: z.boolean().default(true),
+      allowChat: z.boolean().default(true),
+      allowUnmute: z.boolean().default(true),
+      allowCamera: z.boolean().default(true)
     })
     .default({
       allowGuests: true,
       waitingRoom: false,
-      defaultMute: false
+      defaultMute: false,
+      allowScreenShare: true,
+      allowChat: true,
+      allowUnmute: true,
+      allowCamera: true
     })
 });
 
@@ -75,7 +83,11 @@ export const updateMeetingSchema = z.object({
     .object({
       allowGuests: z.boolean().optional(),
       waitingRoom: z.boolean().optional(),
-      defaultMute: z.boolean().optional()
+      defaultMute: z.boolean().optional(),
+      allowScreenShare: z.boolean().optional(),
+      allowChat: z.boolean().optional(),
+      allowUnmute: z.boolean().optional(),
+      allowCamera: z.boolean().optional()
     })
     .optional()
 });
@@ -156,5 +168,57 @@ export const saveTranscriptSchema = z.object({
     .optional(),
   language: z.string().default('en'),
   consentRecorded: z.boolean().default(true)
+});
+
+// Host Control Schemas
+export const updateHostSettingsSchema = z.object({
+  isLocked: z.boolean().optional(),
+  waitingRoom: z.boolean().optional(),
+  defaultMute: z.boolean().optional(),
+  allowScreenShare: z.boolean().optional(),
+  allowChat: z.boolean().optional(),
+  allowUnmute: z.boolean().optional(),
+  allowCamera: z.boolean().optional()
+});
+
+export const moderateParticipantSchema = z.object({
+  action: z.enum([
+    'mute',
+    'stopVideo',
+    'stopScreenShare',
+    'lowerHand',
+    'remove',
+    'promoteCoHost',
+    'demoteCoHost'
+  ]),
+  targetParticipantId: z.string().optional(),
+  targetSocketId: z.string().optional(),
+  targetUserId: z.string().optional(),
+  blockRejoin: z.boolean().default(false),
+  reason: z.string().max(200).optional()
+});
+
+export const muteAllSchema = z.object({
+  allowUnmute: z.boolean().default(true)
+});
+
+export const lockMeetingSchema = z.object({
+  isLocked: z.boolean()
+});
+
+export const coHostAssignmentSchema = z.object({
+  targetUserId: z.string().min(1, 'Target user ID is required'),
+  assign: z.boolean()
+});
+
+export const admitParticipantSchema = z.object({
+  participantId: z.string().min(1, 'Participant ID is required'),
+  socketId: z.string().optional()
+});
+
+export const rejectParticipantSchema = z.object({
+  participantId: z.string().min(1, 'Participant ID is required'),
+  socketId: z.string().optional(),
+  reason: z.string().max(200).optional()
 });
 

@@ -20,6 +20,7 @@
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
+    "livekit-server-sdk": "^2.19.1",
     "mongodb-memory-server": "^10.1.4",
     "mongoose": "^8.12.1",
     "socket.io": "^4.8.1",

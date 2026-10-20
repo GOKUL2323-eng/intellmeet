@@ -7,6 +7,10 @@ export interface IMeetingDocument extends Document {
   description?: string;
   workspaceId: mongoose.Types.ObjectId;
   hostId: mongoose.Types.ObjectId;
+  coHostIds?: mongoose.Types.ObjectId[];
+  isLocked?: boolean;
+  bannedUserIds?: mongoose.Types.ObjectId[];
+  bannedGuestNames?: string[];
   scheduledStartTime: Date;
   scheduledEndTime: Date;
   actualStartTime?: Date;
@@ -16,6 +20,10 @@ export interface IMeetingDocument extends Document {
     allowGuests: boolean;
     waitingRoom: boolean;
     defaultMute: boolean;
+    allowScreenShare: boolean;
+    allowChat: boolean;
+    allowUnmute: boolean;
+    allowCamera: boolean;
     requirePassword?: boolean;
     passwordHash?: string;
   };
@@ -55,6 +63,28 @@ const MeetingSchema = new Schema<IMeetingDocument>(
       required: true,
       index: true
     },
+    coHostIds: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'User'
+      }
+    ],
+    isLocked: {
+      type: Boolean,
+      default: false,
+      index: true
+    },
+    bannedUserIds: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'User'
+      }
+    ],
+    bannedGuestNames: [
+      {
+        type: String
+      }
+    ],
     scheduledStartTime: {
       type: Date,
       required: true,
@@ -80,6 +110,10 @@ const MeetingSchema = new Schema<IMeetingDocument>(
       allowGuests: { type: Boolean, default: true },
       waitingRoom: { type: Boolean, default: false },
       defaultMute: { type: Boolean, default: false },
+      allowScreenShare: { type: Boolean, default: true },
+      allowChat: { type: Boolean, default: true },
+      allowUnmute: { type: Boolean, default: true },
+      allowCamera: { type: Boolean, default: true },
       requirePassword: { type: Boolean, default: false },
       passwordHash: { type: String }
     },

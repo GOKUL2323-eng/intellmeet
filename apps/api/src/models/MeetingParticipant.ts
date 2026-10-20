@@ -12,6 +12,11 @@ export interface IMeetingParticipantDocument extends Document {
   isScreenSharing: boolean;
   isHandRaised: boolean;
   isInWaitingRoom: boolean;
+  isAudioBlocked: boolean;
+  isVideoBlocked: boolean;
+  isScreenShareBlocked: boolean;
+  isBanned: boolean;
+  networkQuality: 'good' | 'fair' | 'poor';
   joinedAt: Date;
   leftAt?: Date;
   createdAt: Date;
@@ -61,6 +66,27 @@ const MeetingParticipantSchema = new Schema<IMeetingParticipantDocument>(
     isInWaitingRoom: {
       type: Boolean,
       default: false
+    },
+    isAudioBlocked: {
+      type: Boolean,
+      default: false
+    },
+    isVideoBlocked: {
+      type: Boolean,
+      default: false
+    },
+    isScreenShareBlocked: {
+      type: Boolean,
+      default: false
+    },
+    isBanned: {
+      type: Boolean,
+      default: false
+    },
+    networkQuality: {
+      type: String,
+      enum: ['good', 'fair', 'poor'],
+      default: 'good'
     },
     joinedAt: {
       type: Date,

@@ -61,6 +61,10 @@ export interface IMeetingAccessSettings {
   allowGuests: boolean;
   waitingRoom: boolean;
   defaultMute: boolean;
+  allowScreenShare: boolean;
+  allowChat: boolean;
+  allowUnmute: boolean;
+  allowCamera: boolean;
   requirePassword?: boolean;
 }
 
@@ -72,6 +76,10 @@ export interface IMeeting {
   workspaceId: string;
   hostId: string;
   host?: IUser;
+  coHostIds?: string[];
+  isLocked?: boolean;
+  bannedUserIds?: string[];
+  bannedGuestNames?: string[];
   scheduledStartTime: string;
   scheduledEndTime: string;
   actualStartTime?: string;
@@ -98,6 +106,11 @@ export interface IMeetingParticipant {
   isScreenSharing: boolean;
   isHandRaised?: boolean;
   isInWaitingRoom?: boolean;
+  isAudioBlocked?: boolean;
+  isVideoBlocked?: boolean;
+  isScreenShareBlocked?: boolean;
+  isBanned?: boolean;
+  networkQuality?: 'good' | 'fair' | 'poor';
   joinedAt: string;
   leftAt?: string;
 }
@@ -262,4 +275,49 @@ export interface IMeetingRoomState {
   participants: IMeetingParticipant[];
   isLocked: boolean;
   activeScreenShareSocketId?: string;
+  accessSettings?: IMeetingAccessSettings;
+}
+
+// Host Control Payloads
+export type ParticipantModerationAction =
+  | 'mute'
+  | 'stopVideo'
+  | 'stopScreenShare'
+  | 'lowerHand'
+  | 'remove'
+  | 'promoteCoHost'
+  | 'demoteCoHost';
+
+export interface IModerateParticipantPayload {
+  action: ParticipantModerationAction;
+  targetParticipantId?: string;
+  targetSocketId?: string;
+  targetUserId?: string;
+  blockRejoin?: boolean;
+  reason?: string;
+}
+
+export interface IMuteAllPayload {
+  allowUnmute: boolean;
+}
+
+export interface IUpdateHostSettingsPayload {
+  isLocked?: boolean;
+  waitingRoom?: boolean;
+  defaultMute?: boolean;
+  allowScreenShare?: boolean;
+  allowChat?: boolean;
+  allowUnmute?: boolean;
+  allowCamera?: boolean;
+}
+
+export interface ILiveKitTokenResponse {
+  token: string;
+  url: string;
+  roomName: string;
+  participantIdentity: string;
+  participantName: string;
+  isHost: boolean;
+  isCoHost: boolean;
+  configured: boolean;
 }

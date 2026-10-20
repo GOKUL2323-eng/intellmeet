@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MicOff, Pin, PinOff, MonitorUp } from 'lucide-react';
+import { MicOff, Pin, PinOff, MonitorUp, Hand, Wifi, WifiOff } from 'lucide-react';
 import { IParticipantState } from '../stores/meetingStore';
 
 interface Props {
@@ -13,6 +13,8 @@ interface Props {
   isSpeaking?: boolean;
   isPinned?: boolean;
   onTogglePin?: () => void;
+  isHost?: boolean;
+  isCoHost?: boolean;
 }
 
 export const ParticipantTile: React.FC<Props> = ({
@@ -25,7 +27,9 @@ export const ParticipantTile: React.FC<Props> = ({
   fullName: localName,
   isSpeaking = false,
   isPinned = false,
-  onTogglePin
+  onTogglePin,
+  isHost = false,
+  isCoHost = false
 }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
@@ -34,7 +38,10 @@ export const ParticipantTile: React.FC<Props> = ({
   const isMuted = isLocal ? localMuted : participant?.isMuted;
   const isCameraOff = isLocal ? localCameraOff : participant?.isCameraOff;
   const isScreenSharing = isLocal ? localScreenSharing : participant?.isScreenSharing;
+  const isHandRaised = participant?.isHandRaised;
   const name = isLocal ? `${localName || 'You'} (You)` : participant?.fullName || 'Attendee';
+  const role = isLocal ? (isHost ? 'HOST' : isCoHost ? 'CO_HOST' : 'ATTENDEE') : participant?.role;
+  const quality = isLocal ? 'good' : participant?.networkQuality || 'good';
 
   // Check if active video track exists in stream
   const hasLiveVideoTrack = Boolean(
@@ -135,14 +142,36 @@ export const ParticipantTile: React.FC<Props> = ({
               <span className="hidden xs:inline">Presenting</span>
             </span>
           )}
+          {isHandRaised && (
+            <span className="flex items-center gap-1 text-amber-400 font-semibold shrink-0">
+              <Hand className="w-3 h-3 sm:w-3.5 sm:h-3.5 animate-bounce" />
+            </span>
+          )}
+          {role === 'HOST' && (
+            <span className="px-1.5 py-0.2 rounded bg-violet-500/30 text-violet-300 font-bold text-[10px] shrink-0">
+              Host
+            </span>
+          )}
+          {role === 'CO_HOST' && (
+            <span className="px-1.5 py-0.2 rounded bg-cyan-500/30 text-cyan-300 font-bold text-[10px] shrink-0">
+              Co-Host
+            </span>
+          )}
           <span className="truncate">{name}</span>
         </div>
 
-        {isMuted && (
-          <div className="p-1 sm:p-1.5 rounded-lg bg-rose-600/90 backdrop-blur-md text-white border border-rose-500/40 shadow-sm shrink-0">
-            <MicOff className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-          </div>
-        )}
+        <div className="flex items-center gap-1 shrink-0">
+          {quality === 'poor' && (
+            <div className="p-1 sm:p-1.5 rounded-lg bg-rose-600/90 backdrop-blur-md text-white border border-rose-500/40 shadow-sm" title="Poor connection">
+              <WifiOff className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+            </div>
+          )}
+          {isMuted && (
+            <div className="p-1 sm:p-1.5 rounded-lg bg-rose-600/90 backdrop-blur-md text-white border border-rose-500/40 shadow-sm shrink-0">
+              <MicOff className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

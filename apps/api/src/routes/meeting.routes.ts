@@ -9,7 +9,12 @@ import {
   processAISummarySchema,
   updateSummarySchema,
   sendChatMessageSchema,
-  saveTranscriptSchema
+  saveTranscriptSchema,
+  updateHostSettingsSchema,
+  lockMeetingSchema,
+  muteAllSchema,
+  moderateParticipantSchema,
+  coHostAssignmentSchema
 } from '@intellmeet/shared';
 
 const router = Router();
@@ -31,6 +36,19 @@ router.post('/', requireWorkspaceMember, validateBody(createMeetingSchema), Meet
 router.get('/:meetingId', requireWorkspaceMember, MeetingController.getById);
 router.patch('/:meetingId', requireWorkspaceMember, validateBody(updateMeetingSchema), MeetingController.update);
 router.post('/:meetingId/end', requireWorkspaceMember, MeetingController.end);
+
+// Host Controls & Moderation APIs
+router.get('/:meetingId/participants', requireWorkspaceMember, MeetingController.getParticipants);
+router.get('/:meetingId/moderation-logs', requireWorkspaceMember, MeetingController.getModerationHistory);
+router.get('/:meetingId/livekit-token', requireWorkspaceMember, MeetingController.getLiveKitToken);
+
+router.patch('/:meetingId/settings', requireWorkspaceMember, validateBody(updateHostSettingsSchema), MeetingController.updateHostSettings);
+router.post('/:meetingId/lock', requireWorkspaceMember, validateBody(lockMeetingSchema), MeetingController.lock);
+router.post('/:meetingId/mute-all', requireWorkspaceMember, validateBody(muteAllSchema), MeetingController.muteAll);
+router.post('/:meetingId/participants/:participantId/moderate', requireWorkspaceMember, validateBody(moderateParticipantSchema), MeetingController.moderateParticipant);
+router.post('/:meetingId/participants/:participantId/admit', requireWorkspaceMember, MeetingController.admitParticipant);
+router.post('/:meetingId/participants/:participantId/reject', requireWorkspaceMember, MeetingController.rejectParticipant);
+router.post('/:meetingId/co-hosts', requireWorkspaceMember, validateBody(coHostAssignmentSchema), MeetingController.assignCoHost);
 
 // Chat
 router.get('/:meetingId/messages', requireWorkspaceMember, MeetingController.getMessages);

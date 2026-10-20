@@ -19,7 +19,9 @@ export function useWebRTC(
   meetingId: string,
   initialMuted = false,
   initialCameraOff = false,
-  preferredName?: string
+  preferredName?: string,
+  onMeetingEnded?: (message?: string) => void,
+  onParticipantRemoved?: (reason?: string) => void
 ) {
   const { user } = useAuthStore();
   const {
@@ -32,15 +34,28 @@ export function useWebRTC(
     setCameraOff,
     setScreenSharing,
     setActiveSpeaker,
+    setIsHost,
+    setIsCoHost,
+    setIsMeetingLocked,
+    setAccessSettings,
+    setWaitingRoom,
+    setWaitingParticipants,
+    setIsAudioBlocked,
+    setIsVideoBlocked,
     isMuted,
     isCameraOff,
-    isScreenSharing
+    isScreenSharing,
+    isAudioBlocked,
+    isVideoBlocked,
+    isAudioOnlyMode
   } = useMeetingStore();
 
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
   const [socketConnected, setSocketConnected] = useState(false);
   const [permissionError, setPermissionError] = useState<string | null>(null);
+  const [networkQuality, setNetworkQuality] = useState<'good' | 'fair' | 'poor'>('good');
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const socketRef = useRef<Socket | null>(null);
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
@@ -49,6 +64,11 @@ export function useWebRTC(
   const localStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+
+  const showToast = useCallback((msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 4000);
+  }, []);
 
   /**
    * Generates a realistic synthetic camera stream using HTML5 Canvas
@@ -61,18 +81,16 @@ export function useWebRTC(
     const ctx = canvas.getContext('2d')!;
 
     let frame = 0;
-    const userName = user?.fullName || 'You';
+    const userName = preferredName || user?.fullName || 'Attendee';
 
     const draw = () => {
       frame++;
-      // Gradient background
       const grad = ctx.createLinearGradient(0, 0, 640, 360);
       grad.addColorStop(0, '#0f172a');
       grad.addColorStop(1, '#1e1b4b');
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, 640, 360);
 
-      // Animated glowing orb
       const cx = 320 + Math.sin(frame * 0.05) * 40;
       const cy = 160 + Math.cos(frame * 0.05) * 20;
       ctx.beginPath();
@@ -80,20 +98,17 @@ export function useWebRTC(
       ctx.fillStyle = '#8b5cf6';
       ctx.fill();
 
-      // Avatar circle
       ctx.beginPath();
       ctx.arc(320, 160, 50, 0, Math.PI * 2);
       ctx.fillStyle = '#3b82f6';
       ctx.fill();
 
-      // Initial letter
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 36px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(userName.charAt(0).toUpperCase(), 320, 160);
 
-      // Name banner
       ctx.font = 'bold 16px sans-serif';
       ctx.fillText(userName, 320, 240);
       ctx.font = '12px sans-serif';
@@ -104,16 +119,14 @@ export function useWebRTC(
     };
     draw();
 
-    // Canvas video track
     const canvasStream = canvas.captureStream(30);
 
-    // Synthetic silent audio track via Web Audio
     try {
       const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
       const osc = audioCtx.createOscillator();
       const dst = audioCtx.createMediaStreamDestination();
       const gain = audioCtx.createGain();
-      gain.gain.value = 0.0001; // virtually silent
+      gain.gain.value = 0.0001;
       osc.connect(gain);
       gain.connect(dst);
       osc.start();
@@ -126,11 +139,8 @@ export function useWebRTC(
     }
 
     return canvasStream;
-  }, [user]);
+  }, [user, preferredName]);
 
-  /**
-   * Acquire local camera & microphone streams
-   */
   /**
    * Acquire local camera & microphone streams
    */
@@ -152,11 +162,9 @@ export function useWebRTC(
             }
           });
         } catch (mediaErr) {
-          console.warn('Physical camera/mic with ideal constraints unavailable. Trying fallback:', mediaErr);
           try {
             stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
           } catch (basicErr) {
-            console.warn('Physical camera/mic unavailable. Using synthetic feed:', basicErr);
             stream = createSyntheticMediaStream();
           }
         }
@@ -174,7 +182,6 @@ export function useWebRTC(
       setMuted(initialMuted);
       setCameraOff(initialCameraOff);
 
-      // Setup audio visualizer for active speaking detection
       setupAudioDetection(stream);
 
       return stream;
@@ -225,13 +232,10 @@ export function useWebRTC(
       };
       checkVolume();
     } catch (err) {
-      // AudioContext may be restricted by browser policy before user interaction
+      // AudioContext policy
     }
   };
 
-  /**
-   * Helper to drain and apply any queued ICE candidates for a peer
-   */
   const drainCandidateQueue = useCallback(async (peerSocketId: string, pc: RTCPeerConnection) => {
     const queue = candidateQueuesRef.current.get(peerSocketId) || [];
     candidateQueuesRef.current.delete(peerSocketId);
@@ -244,11 +248,7 @@ export function useWebRTC(
     }
   }, []);
 
-  /**
-   * Create RTCPeerConnection for a remote peer socket
-   */
   const createPeerConnection = useCallback((peerSocketId: string, isInitiator: boolean) => {
-    // Return existing if already open
     const existingPc = peerConnectionsRef.current.get(peerSocketId);
     if (existingPc && existingPc.signalingState !== 'closed') {
       return existingPc;
@@ -257,7 +257,6 @@ export function useWebRTC(
     const pc = new RTCPeerConnection(ICE_SERVERS);
     peerConnectionsRef.current.set(peerSocketId, pc);
 
-    // Add local tracks to peer connection
     const currentStream = screenStreamRef.current || localStreamRef.current;
     if (currentStream) {
       currentStream.getTracks().forEach(track => {
@@ -265,7 +264,6 @@ export function useWebRTC(
       });
     }
 
-    // Send ICE candidates to remote peer via Socket.io
     pc.onicecandidate = (event) => {
       if (event.candidate && socketRef.current) {
         socketRef.current.emit('meeting:signal', {
@@ -275,19 +273,16 @@ export function useWebRTC(
       }
     };
 
-    // Connection state monitor & auto-recovery
     pc.oniceconnectionstatechange = () => {
-      console.log(`[WebRTC] ICE state (${peerSocketId}):`, pc.iceConnectionState);
       if (pc.iceConnectionState === 'failed') {
         try {
           pc.restartIce();
         } catch {
-          // Restart ICE if supported
+          // Restart ICE
         }
       }
     };
 
-    // When remote track arrives, aggregate into a persistent MediaStream
     pc.ontrack = (event) => {
       let stream = remoteStreamsRef.current.get(peerSocketId);
       if (!stream) {
@@ -298,11 +293,18 @@ export function useWebRTC(
       if (event.streams && event.streams[0]) {
         event.streams[0].getTracks().forEach(track => {
           if (!stream!.getTracks().some(t => t.id === track.id)) {
+            // Respect low-bandwidth / audio-only mode
+            if (track.kind === 'video' && isAudioOnlyMode) {
+              track.enabled = false;
+            }
             stream!.addTrack(track);
           }
         });
       } else if (event.track) {
         if (!stream.getTracks().some(t => t.id === event.track.id)) {
+          if (event.track.kind === 'video' && isAudioOnlyMode) {
+            event.track.enabled = false;
+          }
           stream.addTrack(event.track);
         }
       }
@@ -310,7 +312,6 @@ export function useWebRTC(
       updateParticipant(peerSocketId, { stream });
     };
 
-    // If initiator, generate SDP offer
     if (isInitiator) {
       pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true })
         .then(offer => pc.setLocalDescription(offer))
@@ -326,14 +327,15 @@ export function useWebRTC(
     }
 
     return pc;
-  }, [updateParticipant]);
+  }, [updateParticipant, isAudioOnlyMode]);
 
   // Connect to Socket.io & join room
   useEffect(() => {
-    let streamInstance: MediaStream;
+    let active = true;
 
     const init = async () => {
-      streamInstance = await startMedia();
+      await startMedia();
+      if (!active) return;
 
       const rawSocketTarget = (import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL || '').trim().replace(/\/$/, '');
       const socketTarget = rawSocketTarget
@@ -364,22 +366,67 @@ export function useWebRTC(
         });
       });
 
-      // Existing participants in the room
-      socket.on('meeting:room-state', (data: { participants: any[]; you: any }) => {
+      // Waiting room event
+      socket.on('meeting:waiting-room', (data: { message: string }) => {
+        setWaitingRoom(true, data.message);
+      });
+
+      socket.on('meeting:waiting-room-updated', (data: { waitingParticipants: any[]; count: number }) => {
+        setWaitingParticipants(data.waitingParticipants || []);
+      });
+
+      // Admitted from waiting room
+      socket.on('meeting:admitted', (data: { participants: any[]; you: any }) => {
+        setWaitingRoom(false);
+        showToast('You have been admitted to the meeting!');
         setParticipants(data.participants);
-        // Connect to each existing participant as the initiator
         data.participants.forEach(p => {
           createPeerConnection(p.socketId, true);
         });
       });
 
-      // New peer joined
+      // Rejected from waiting room
+      socket.on('meeting:rejected', (data: { message: string }) => {
+        setWaitingRoom(false);
+        alert(data.message || 'The host has denied admission to this meeting.');
+        if (onParticipantRemoved) {
+          onParticipantRemoved(data.message);
+        }
+      });
+
+      // Existing participants in the room
+      socket.on('meeting:room-state', (data: {
+        participants: any[];
+        you: any;
+        isLocked?: boolean;
+        accessSettings?: any;
+        waitingParticipants?: any[];
+      }) => {
+        setWaitingRoom(false);
+        setParticipants(data.participants);
+
+        if (data.you?.role === 'HOST') {
+          setIsHost(true);
+          setIsCoHost(false);
+        } else if (data.you?.role === 'CO_HOST') {
+          setIsCoHost(true);
+          setIsHost(false);
+        }
+
+        if (data.isLocked !== undefined) setIsMeetingLocked(data.isLocked);
+        if (data.accessSettings) setAccessSettings(data.accessSettings);
+        if (data.waitingParticipants) setWaitingParticipants(data.waitingParticipants);
+
+        data.participants.forEach(p => {
+          createPeerConnection(p.socketId, true);
+        });
+      });
+
       socket.on('meeting:participant-joined', (participant: any) => {
         addParticipant(participant);
         createPeerConnection(participant.socketId, false);
       });
 
-      // WebRTC Signal (Offer, Answer, or Candidate) with Candidate Queuing
       socket.on('meeting:signal', async (data: { fromSocketId: string; signal: any }) => {
         let pc = peerConnectionsRef.current.get(data.fromSocketId);
         if (!pc) {
@@ -405,7 +452,6 @@ export function useWebRTC(
                 console.warn('[WebRTC] Error adding ICE candidate:', err);
               });
             } else {
-              // Buffer candidate until remote description is settled
               const queue = candidateQueuesRef.current.get(data.fromSocketId) || [];
               queue.push(data.signal);
               candidateQueuesRef.current.set(data.fromSocketId, queue);
@@ -416,12 +462,10 @@ export function useWebRTC(
         }
       });
 
-      // Participant state updates (mute, camera, hand raise)
       socket.on('meeting:participant-updated', (data: any) => {
         updateParticipant(data.socketId, data);
       });
 
-      // Participant left
       socket.on('meeting:participant-left', (data: { socketId: string }) => {
         removeParticipant(data.socketId);
         candidateQueuesRef.current.delete(data.socketId);
@@ -433,16 +477,117 @@ export function useWebRTC(
         }
       });
 
-      // Chat broadcast
       socket.on('meeting:chat', (msg: any) => {
         addChatMessage(msg);
+      });
+
+      // Host Moderation Events
+      socket.on('meeting:lock-toggled', (data: { isLocked: boolean; lockedBy: string }) => {
+        setIsMeetingLocked(data.isLocked);
+        showToast(data.isLocked ? 'The host has locked the meeting.' : 'The meeting has been unlocked.');
+      });
+
+      socket.on('meeting:all-muted', (data: { allowUnmute: boolean; mutedBy: string }) => {
+        if (localStreamRef.current) {
+          localStreamRef.current.getAudioTracks().forEach(t => (t.enabled = false));
+        }
+        setMuted(true);
+        if (!data.allowUnmute) {
+          setIsAudioBlocked(true);
+        }
+        showToast(
+          data.allowUnmute
+            ? 'The host has muted all participants.'
+            : 'The host has muted all participants and disabled unmuting.'
+        );
+      });
+
+      socket.on('meeting:force-mute', (data: { message?: string }) => {
+        if (localStreamRef.current) {
+          localStreamRef.current.getAudioTracks().forEach(t => (t.enabled = false));
+        }
+        setMuted(true);
+        showToast(data.message || 'You have been muted by the host.');
+      });
+
+      socket.on('meeting:force-stop-video', (data: { message?: string }) => {
+        if (localStreamRef.current) {
+          localStreamRef.current.getVideoTracks().forEach(t => (t.enabled = false));
+        }
+        setCameraOff(true);
+        setIsVideoBlocked(true);
+        showToast(data.message || 'Your camera was turned off by the host.');
+      });
+
+      socket.on('meeting:force-stop-screen', (data: { message?: string }) => {
+        if (screenStreamRef.current) {
+          screenStreamRef.current.getTracks().forEach(t => t.stop());
+          screenStreamRef.current = null;
+        }
+        setScreenStream(null);
+        setScreenSharing(false);
+        showToast(data.message || 'Your screen sharing was stopped by the host.');
+      });
+
+      socket.on('meeting:removed', (data: { reason?: string; isBanned?: boolean }) => {
+        alert(data.reason || 'You have been removed from the meeting by the host.');
+        if (onParticipantRemoved) {
+          onParticipantRemoved(data.reason);
+        }
+      });
+
+      socket.on('meeting:role-changed', (data: { role: string }) => {
+        if (data.role === 'CO_HOST') {
+          setIsCoHost(true);
+          showToast('You have been granted Co-Host privileges.');
+        } else {
+          setIsCoHost(false);
+          showToast('Your Co-Host privileges have been revoked.');
+        }
+      });
+
+      socket.on('meeting:permissions-updated', (permissions: any) => {
+        setAccessSettings(permissions);
+        showToast('Meeting permissions updated by host.');
+      });
+
+      socket.on('meeting:network-quality-updated', (data: { socketId: string; quality: 'good' | 'fair' | 'poor' }) => {
+        updateParticipant(data.socketId, { networkQuality: data.quality });
+      });
+
+      socket.on('meeting:ended', (data: { message?: string }) => {
+        if (onMeetingEnded) {
+          onMeetingEnded(data.message || 'The host has ended this meeting for everyone.');
+        } else {
+          alert(data.message || 'The meeting has been ended by the host.');
+          window.location.href = '/dashboard';
+        }
+      });
+
+      socket.on('meeting:error', (err: { message: string; code?: string }) => {
+        showToast(`Notice: ${err.message}`);
       });
     };
 
     init();
 
+    // Network connection quality monitor
+    const qualityInterval = setInterval(() => {
+      if (socketRef.current && socketRef.current.connected) {
+        const start = Date.now();
+        socketRef.current.emit('meeting:ping', () => {
+          const latency = Date.now() - start;
+          const quality = latency < 150 ? 'good' : latency < 400 ? 'fair' : 'poor';
+          setNetworkQuality(quality);
+          socketRef.current?.emit('meeting:network-quality', { meetingId, quality });
+        });
+      }
+    }, 15000);
+
     return () => {
-      // Cleanup all connections on unmount
+      active = false;
+      clearInterval(qualityInterval);
+
       if (socketRef.current) {
         socketRef.current.emit('meeting:leave', { meetingId });
         socketRef.current.disconnect();
@@ -461,10 +606,15 @@ export function useWebRTC(
         audioContextRef.current.close().catch(() => {});
       }
     };
-  }, [meetingId, user, initialMuted, initialCameraOff, preferredName, startMedia, createPeerConnection, drainCandidateQueue, setParticipants, addParticipant, updateParticipant, removeParticipant, addChatMessage]);
+  }, [meetingId, user, initialMuted, initialCameraOff, preferredName, startMedia, createPeerConnection, drainCandidateQueue, setParticipants, addParticipant, updateParticipant, removeParticipant, addChatMessage, setIsHost, setIsCoHost, setIsMeetingLocked, setAccessSettings, setWaitingRoom, setWaitingParticipants, setIsAudioBlocked, setIsVideoBlocked, showToast, onMeetingEnded, onParticipantRemoved]);
 
   // Toggle microphone
   const toggleAudio = useCallback(() => {
+    if (isAudioBlocked) {
+      showToast('Unmuting is disabled by the meeting host.');
+      return;
+    }
+
     if (localStreamRef.current) {
       const audioTracks = localStreamRef.current.getAudioTracks();
       const nextState = !isMuted;
@@ -476,10 +626,15 @@ export function useWebRTC(
         isMuted: nextState
       });
     }
-  }, [isMuted, meetingId, setMuted]);
+  }, [isMuted, isAudioBlocked, meetingId, setMuted, showToast]);
 
   // Toggle camera
   const toggleVideo = useCallback(() => {
+    if (isVideoBlocked) {
+      showToast('Camera is disabled by the meeting host.');
+      return;
+    }
+
     if (localStreamRef.current) {
       const videoTracks = localStreamRef.current.getVideoTracks();
       const nextState = !isCameraOff;
@@ -491,12 +646,11 @@ export function useWebRTC(
         isCameraOff: nextState
       });
     }
-  }, [isCameraOff, meetingId, setCameraOff]);
+  }, [isCameraOff, isVideoBlocked, meetingId, setCameraOff, showToast]);
 
   // Screen share toggle
   const toggleScreenShare = useCallback(async () => {
     if (isScreenSharing) {
-      // Stop screen share
       if (screenStreamRef.current) {
         screenStreamRef.current.getTracks().forEach(t => t.stop());
         screenStreamRef.current = null;
@@ -504,7 +658,6 @@ export function useWebRTC(
       setScreenStream(null);
       setScreenSharing(false);
 
-      // Re-replace track with local camera track
       const videoTrack = localStreamRef.current?.getVideoTracks()[0];
       if (videoTrack) {
         peerConnectionsRef.current.forEach(pc => {
@@ -515,7 +668,6 @@ export function useWebRTC(
 
       socketRef.current?.emit('meeting:screen-share', { meetingId, isSharing: false });
     } else {
-      // Start screen share
       try {
         const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
         screenStreamRef.current = stream;
@@ -527,7 +679,6 @@ export function useWebRTC(
           toggleScreenShare();
         };
 
-        // Replace outgoing track for all connected peers
         peerConnectionsRef.current.forEach(pc => {
           const sender = pc.getSenders().find(s => s.track?.kind === 'video');
           if (sender) sender.replaceTrack(screenTrack);
@@ -540,7 +691,6 @@ export function useWebRTC(
     }
   }, [isScreenSharing, meetingId, setScreenSharing]);
 
-  // Send in-meeting chat message
   const sendMeetingChat = useCallback((message: string) => {
     if (!message.trim() || !socketRef.current) return;
     socketRef.current.emit('meeting:chat', {
@@ -549,15 +699,73 @@ export function useWebRTC(
     });
   }, [meetingId]);
 
+  // Host Control actions
+  const admitParticipant = useCallback((socketId: string) => {
+    socketRef.current?.emit('meeting:admit-participant', { meetingId, socketId });
+  }, [meetingId]);
+
+  const rejectParticipant = useCallback((socketId: string, reason?: string) => {
+    socketRef.current?.emit('meeting:reject-participant', { meetingId, socketId, reason });
+  }, [meetingId]);
+
+  const toggleMeetingLock = useCallback((isLocked: boolean) => {
+    socketRef.current?.emit('meeting:lock', { meetingId, isLocked });
+  }, [meetingId]);
+
+  const muteAllParticipants = useCallback((allowUnmute = true) => {
+    socketRef.current?.emit('meeting:mute-all', { meetingId, allowUnmute });
+  }, [meetingId]);
+
+  const moderateParticipant = useCallback((
+    targetSocketId: string,
+    action: 'mute' | 'stopVideo' | 'stopScreenShare' | 'lowerHand' | 'remove' | 'promoteCoHost' | 'demoteCoHost',
+    blockRejoin = false,
+    reason?: string
+  ) => {
+    socketRef.current?.emit('meeting:moderate-participant', {
+      meetingId,
+      targetSocketId,
+      action,
+      blockRejoin,
+      reason
+    });
+  }, [meetingId]);
+
+  const updateMeetingPermissions = useCallback((permissions: {
+    allowChat?: boolean;
+    allowScreenShare?: boolean;
+    allowUnmute?: boolean;
+    allowCamera?: boolean;
+    waitingRoom?: boolean;
+  }) => {
+    socketRef.current?.emit('meeting:update-permissions', {
+      meetingId,
+      permissions
+    });
+  }, [meetingId]);
+
+  const endMeetingForEveryone = useCallback(() => {
+    socketRef.current?.emit('meeting:end', { meetingId });
+  }, [meetingId]);
+
   return {
     localStream,
     screenStream,
     socketConnected,
     permissionError,
+    networkQuality,
+    toastMessage,
     toggleAudio,
     toggleVideo,
     toggleScreenShare,
     sendMeetingChat,
+    admitParticipant,
+    rejectParticipant,
+    toggleMeetingLock,
+    muteAllParticipants,
+    moderateParticipant,
+    updateMeetingPermissions,
+    endMeetingForEveryone,
     isMuted,
     isCameraOff,
     isScreenSharing

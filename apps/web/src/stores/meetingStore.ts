@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { IMeeting } from '@intellmeet/shared';
+import { IMeeting, IMeetingAccessSettings } from '@intellmeet/shared';
 
 export interface IParticipantState {
   socketId: string;
@@ -10,6 +10,10 @@ export interface IParticipantState {
   isCameraOff: boolean;
   isScreenSharing: boolean;
   isHandRaised?: boolean;
+  isAudioBlocked?: boolean;
+  isVideoBlocked?: boolean;
+  isScreenShareBlocked?: boolean;
+  networkQuality?: 'good' | 'fair' | 'poor';
   stream?: MediaStream;
 }
 
@@ -19,6 +23,13 @@ export interface IChatMsg {
   senderId?: string;
   message: string;
   createdAt: string;
+}
+
+export interface IWaitingParticipantState {
+  socketId: string;
+  userId?: string;
+  fullName: string;
+  requestedAt: string;
 }
 
 interface MeetingState {
@@ -35,8 +46,22 @@ interface MeetingState {
   isChatOpen: boolean;
   isParticipantsOpen: boolean;
   isNotesOpen: boolean;
+  isHostControlOpen: boolean;
   notes: string;
   isInWaitingRoom: boolean;
+  waitingRoomMessage: string;
+
+  // Host Controls & Moderation state
+  isHost: boolean;
+  isCoHost: boolean;
+  isMeetingLocked: boolean;
+  accessSettings: IMeetingAccessSettings | null;
+  waitingParticipants: IWaitingParticipantState[];
+  isAudioBlocked: boolean;
+  isVideoBlocked: boolean;
+  isScreenShareBlocked: boolean;
+  isAudioOnlyMode: boolean; // Low-bandwidth optimization
+  moderationLogs: any[];
 
   setActiveMeeting: (meeting: IMeeting | null) => void;
   setParticipants: (list: IParticipantState[]) => void;
@@ -54,8 +79,20 @@ interface MeetingState {
   toggleChat: () => void;
   toggleParticipants: () => void;
   toggleNotes: () => void;
+  toggleHostControl: () => void;
   setNotes: (text: string) => void;
-  setWaitingRoom: (val: boolean) => void;
+  setWaitingRoom: (val: boolean, message?: string) => void;
+  setIsHost: (val: boolean) => void;
+  setIsCoHost: (val: boolean) => void;
+  setIsMeetingLocked: (val: boolean) => void;
+  setAccessSettings: (settings: IMeetingAccessSettings) => void;
+  setWaitingParticipants: (list: IWaitingParticipantState[]) => void;
+  removeWaitingParticipant: (socketId: string) => void;
+  setIsAudioBlocked: (val: boolean) => void;
+  setIsVideoBlocked: (val: boolean) => void;
+  setIsScreenShareBlocked: (val: boolean) => void;
+  setIsAudioOnlyMode: (val: boolean) => void;
+  setModerationLogs: (logs: any[]) => void;
   resetMeetingState: () => void;
 }
 
@@ -73,8 +110,21 @@ export const useMeetingStore = create<MeetingState>((set) => ({
   isChatOpen: false,
   isParticipantsOpen: false,
   isNotesOpen: false,
+  isHostControlOpen: false,
   notes: '',
   isInWaitingRoom: false,
+  waitingRoomMessage: 'Waiting for the meeting host to admit you...',
+
+  isHost: false,
+  isCoHost: false,
+  isMeetingLocked: false,
+  accessSettings: null,
+  waitingParticipants: [],
+  isAudioBlocked: false,
+  isVideoBlocked: false,
+  isScreenShareBlocked: false,
+  isAudioOnlyMode: false,
+  moderationLogs: [],
 
   setActiveMeeting: (meeting) => set({ activeMeeting: meeting }),
 
@@ -125,25 +175,56 @@ export const useMeetingStore = create<MeetingState>((set) => ({
     set((s) => ({
       isChatOpen: !s.isChatOpen,
       isParticipantsOpen: false,
-      isNotesOpen: false
+      isNotesOpen: false,
+      isHostControlOpen: false
     })),
 
   toggleParticipants: () =>
     set((s) => ({
       isParticipantsOpen: !s.isParticipantsOpen,
       isChatOpen: false,
-      isNotesOpen: false
+      isNotesOpen: false,
+      isHostControlOpen: false
     })),
 
   toggleNotes: () =>
     set((s) => ({
       isNotesOpen: !s.isNotesOpen,
       isChatOpen: false,
-      isParticipantsOpen: false
+      isParticipantsOpen: false,
+      isHostControlOpen: false
+    })),
+
+  toggleHostControl: () =>
+    set((s) => ({
+      isHostControlOpen: !s.isHostControlOpen,
+      isChatOpen: false,
+      isParticipantsOpen: false,
+      isNotesOpen: false
     })),
 
   setNotes: (text) => set({ notes: text }),
-  setWaitingRoom: (val) => set({ isInWaitingRoom: val }),
+  setWaitingRoom: (val, message) =>
+    set({
+      isInWaitingRoom: val,
+      waitingRoomMessage: message || 'Waiting for the meeting host to admit you...'
+    }),
+
+  setIsHost: (val) => set({ isHost: val }),
+  setIsCoHost: (val) => set({ isCoHost: val }),
+  setIsMeetingLocked: (val) => set({ isMeetingLocked: val }),
+  setAccessSettings: (settings) => set({ accessSettings: settings }),
+  setWaitingParticipants: (list) => set({ waitingParticipants: list }),
+  removeWaitingParticipant: (socketId) =>
+    set((s) => ({
+      waitingParticipants: s.waitingParticipants.filter(p => p.socketId !== socketId)
+    })),
+
+  setIsAudioBlocked: (val) => set({ isAudioBlocked: val }),
+  setIsVideoBlocked: (val) => set({ isVideoBlocked: val }),
+  setIsScreenShareBlocked: (val) => set({ isScreenShareBlocked: val }),
+  setIsAudioOnlyMode: (val) => set({ isAudioOnlyMode: val }),
+  setModerationLogs: (logs) => set({ moderationLogs: logs }),
 
   resetMeetingState: () =>
     set({
@@ -159,6 +240,18 @@ export const useMeetingStore = create<MeetingState>((set) => ({
       isChatOpen: false,
       isParticipantsOpen: false,
       isNotesOpen: false,
-      isInWaitingRoom: false
+      isHostControlOpen: false,
+      isInWaitingRoom: false,
+      waitingRoomMessage: 'Waiting for the meeting host to admit you...',
+      isHost: false,
+      isCoHost: false,
+      isMeetingLocked: false,
+      accessSettings: null,
+      waitingParticipants: [],
+      isAudioBlocked: false,
+      isVideoBlocked: false,
+      isScreenShareBlocked: false,
+      isAudioOnlyMode: false,
+      moderationLogs: []
     })
 }));

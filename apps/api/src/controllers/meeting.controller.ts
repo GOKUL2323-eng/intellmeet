@@ -8,6 +8,9 @@ import { MeetingSummaryModel } from '../models/MeetingSummary';
 import { MeetingTranscriptModel } from '../models/MeetingTranscript';
 import { ActionItemModel } from '../models/ActionItem';
 import { MeetingStatus } from '@intellmeet/shared';
+import { LiveKitService } from '../services/livekit.service';
+import { broadcastToMeeting } from '../sockets/socketHandler';
+import { config } from '../config/env';
 
 export class MeetingController {
   static async create(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -109,7 +112,214 @@ export class MeetingController {
         req.workspaceId
       );
 
+      broadcastToMeeting(meeting._id.toString(), 'meeting:ended', {
+        endedBy: req.user!.fullName,
+        message: 'The meeting has been ended by the host.'
+      });
+
       res.json({ message: 'Meeting ended successfully.', meeting });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async updateHostSettings(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const meeting = await MeetingService.updateHostSettings(
+        req.params.meetingId,
+        req.user!._id.toString(),
+        req.body
+      );
+
+      broadcastToMeeting(meeting._id.toString(), 'meeting:permissions-updated', meeting.accessSettings);
+      if (req.body.isLocked !== undefined) {
+        broadcastToMeeting(meeting._id.toString(), 'meeting:lock-toggled', {
+          isLocked: meeting.isLocked,
+          lockedBy: req.user!.fullName
+        });
+      }
+
+      res.json({ message: 'Meeting host settings updated.', meeting });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async lock(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const meeting = await MeetingService.lockMeeting(
+        req.params.meetingId,
+        req.user!._id.toString(),
+        req.body.isLocked
+      );
+
+      broadcastToMeeting(meeting._id.toString(), 'meeting:lock-toggled', {
+        isLocked: meeting.isLocked,
+        lockedBy: req.user!.fullName
+      });
+
+      res.json({
+        message: meeting.isLocked ? 'Meeting locked.' : 'Meeting unlocked.',
+        isLocked: meeting.isLocked
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async muteAll(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const allowUnmute = req.body.allowUnmute ?? true;
+      const result = await MeetingService.muteAllParticipants(
+        req.params.meetingId,
+        req.user!._id.toString(),
+        allowUnmute
+      );
+
+      broadcastToMeeting(req.params.meetingId, 'meeting:all-muted', {
+        allowUnmute,
+        mutedBy: req.user!.fullName
+      });
+
+      res.json({ message: 'All participants muted.', ...result });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async moderateParticipant(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const result = await MeetingService.moderateParticipant(
+        req.params.meetingId,
+        req.user!._id.toString(),
+        req.params.participantId,
+        req.body.action,
+        req.body
+      );
+
+      res.json({
+        message: `Action '${req.body.action}' completed successfully.`,
+        participant: result.participant
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async admitParticipant(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const participant = await MeetingService.admitParticipant(
+        req.params.meetingId,
+        req.user!._id.toString(),
+        req.params.participantId
+      );
+
+      res.json({ message: 'Participant admitted successfully.', participant });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async rejectParticipant(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const participant = await MeetingService.rejectParticipant(
+        req.params.meetingId,
+        req.user!._id.toString(),
+        req.params.participantId,
+        req.body?.reason
+      );
+
+      res.json({ message: 'Participant admission rejected.', participant });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async assignCoHost(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const meeting = await MeetingService.assignCoHost(
+        req.params.meetingId,
+        req.user!._id.toString(),
+        req.body.targetUserId,
+        req.body.assign
+      );
+
+      broadcastToMeeting(meeting._id.toString(), 'meeting:role-changed', {
+        userId: req.body.targetUserId,
+        role: req.body.assign ? 'CO_HOST' : 'ATTENDEE'
+      });
+
+      res.json({
+        message: req.body.assign ? 'Co-host privileges granted.' : 'Co-host privileges revoked.',
+        meeting
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async getParticipants(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const participants = await MeetingService.getMeetingParticipants(
+        req.params.meetingId,
+        req.user!._id.toString()
+      );
+
+      res.json({ participants });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async getModerationHistory(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const logs = await MeetingService.getModerationHistory(
+        req.params.meetingId,
+        req.user!._id.toString()
+      );
+
+      res.json({ logs });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async getLiveKitToken(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const meeting = await MeetingService.getMeetingByIdOrCode(req.params.meetingId);
+      if (!meeting) {
+        res.status(404).json({ error: 'Meeting not found.' });
+        return;
+      }
+
+      const hostIdStr = (meeting.hostId as any)?._id
+        ? (meeting.hostId as any)._id.toString()
+        : meeting.hostId.toString();
+      const isHost = hostIdStr === req.user!._id.toString();
+      const isCoHost = Boolean(meeting.coHostIds?.some(id => id.toString() === req.user!._id.toString()));
+      const configured = LiveKitService.isConfigured();
+
+      let token: string | null = null;
+      if (configured) {
+        token = await LiveKitService.generateToken({
+          roomName: meeting.meetingCode,
+          participantIdentity: req.user!._id.toString(),
+          participantName: req.user!.fullName,
+          isHost,
+          isCoHost
+        });
+      }
+
+      res.json({
+        configured,
+        token,
+        url: config.LIVEKIT_URL || '',
+        roomName: meeting.meetingCode,
+        participantIdentity: req.user!._id.toString(),
+        participantName: req.user!.fullName,
+        isHost,
+        isCoHost
+      });
     } catch (err) {
       next(err);
     }
