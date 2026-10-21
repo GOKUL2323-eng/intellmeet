@@ -29,6 +29,7 @@ export class AuthController {
       res.status(201).json({
         message: 'Account successfully registered.',
         accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
         user: result.user,
         workspace: result.workspace
       });
@@ -54,6 +55,7 @@ export class AuthController {
       res.json({
         message: 'Login successful.',
         accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
         user: result.user,
         workspace: result.workspace
       });
@@ -78,7 +80,8 @@ export class AuthController {
       });
 
       res.json({
-        accessToken: result.accessToken
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken
       });
     } catch (err) {
       next(err);

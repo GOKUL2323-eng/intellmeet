@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
 
@@ -22,15 +22,64 @@ import { NotFoundPage } from './pages/NotFoundPage';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuthStore();
+  const { isAuthenticated, isLoading, logout } = useAuthStore();
+  const [showSlowNotice, setShowSlowNotice] = useState(false);
+
+  useEffect(() => {
+    let slowTimer: NodeJS.Timeout;
+    let hardFallbackTimer: NodeJS.Timeout;
+
+    if (isLoading) {
+      slowTimer = setTimeout(() => {
+        setShowSlowNotice(true);
+      }, 2500);
+
+      // Ultimate fail-safe: never trap user on loading screen for more than 9 seconds
+      hardFallbackTimer = setTimeout(() => {
+        useAuthStore.setState({ isLoading: false, isAuthenticated: false });
+      }, 9000);
+    } else {
+      setShowSlowNotice(false);
+    }
+
+    return () => {
+      clearTimeout(slowTimer);
+      clearTimeout(hardFallbackTimer);
+    };
+  }, [isLoading]);
 
   if (isLoading) {
     return (
-      <div className="h-screen w-screen bg-[#0B0F19] flex items-center justify-center text-slate-400 text-xs">
-        <div className="flex items-center gap-2">
+      <div className="h-screen w-screen bg-[#0B0F19] flex flex-col items-center justify-center text-slate-400 text-xs px-4 select-none">
+        <div className="flex items-center gap-2.5">
           <div className="w-3 h-3 rounded-full bg-violet-500 animate-ping" />
-          <span>Verifying IntellMeet session...</span>
+          <span className="text-slate-300 font-medium">Verifying IntellMeet session...</span>
         </div>
+
+        {showSlowNotice && (
+          <div className="flex flex-col items-center gap-2.5 text-center max-w-sm mt-4 animate-fade-in">
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              Connecting to IntellMeet Cloud. Waking up secure cloud instance, this may take a few moments...
+            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <button
+                onClick={() => {
+                  logout();
+                  window.location.href = '/signin';
+                }}
+                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs transition border border-white/10"
+              >
+                Go to Sign In
+              </button>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs transition font-medium"
+              >
+                Reload
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

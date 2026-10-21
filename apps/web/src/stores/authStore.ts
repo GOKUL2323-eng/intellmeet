@@ -24,7 +24,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   workspace: null,
   workspaces: [],
   isAuthenticated: !!apiClient.getToken(),
-  isLoading: true,
+  isLoading: apiClient.hasTokens(),
   error: null,
 
   login: async (email: string, pass: string) => {
@@ -32,6 +32,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const data: any = await apiClient.post('/auth/login', { email, password: pass });
       apiClient.setToken(data.accessToken);
+
+      if (data.refreshToken) {
+        apiClient.setRefreshToken(data.refreshToken);
+      }
 
       if (data.workspace) {
         apiClient.setWorkspaceId(data.workspace.id);
@@ -61,6 +65,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
       apiClient.setToken(data.accessToken);
 
+      if (data.refreshToken) {
+        apiClient.setRefreshToken(data.refreshToken);
+      }
+
       if (data.workspace) {
         apiClient.setWorkspaceId(data.workspace.id);
       }
@@ -80,13 +88,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
+    const refreshToken = apiClient.getRefreshToken();
     try {
-      await apiClient.post('/auth/logout');
+      await apiClient.post('/auth/logout', { refreshToken }, { timeoutMs: 4000 });
     } catch (err) {
       // Ignore logout failure
     }
-    apiClient.setToken(null);
-    apiClient.setWorkspaceId(null);
+    apiClient.clearAuth();
     set({
       user: null,
       workspace: null,
@@ -98,30 +106,52 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   checkAuth: async () => {
     let token = apiClient.getToken();
-    if (!token) {
+    const storedRefreshToken = apiClient.getRefreshToken();
+
+    // Fast-path: If user has no credentials stored, skip network requests completely.
+    // This eliminates any loading delay on cold servers for unauthenticated visitors.
+    if (!token && !storedRefreshToken) {
+      set({ isLoading: false, isAuthenticated: false, user: null });
+      return;
+    }
+
+    if (!token && storedRefreshToken) {
       try {
-        const refreshData: any = await apiClient.post('/auth/refresh');
+        const refreshData: any = await apiClient.post(
+          '/auth/refresh',
+          { refreshToken: storedRefreshToken },
+          { timeoutMs: 8000 }
+        );
         if (refreshData?.accessToken) {
           apiClient.setToken(refreshData.accessToken);
+          if (refreshData.refreshToken) {
+            apiClient.setRefreshToken(refreshData.refreshToken);
+          }
           token = refreshData.accessToken;
         }
       } catch {
+        apiClient.clearAuth();
         set({ isLoading: false, isAuthenticated: false, user: null });
         return;
       }
     }
 
     if (!token) {
+      apiClient.clearAuth();
       set({ isLoading: false, isAuthenticated: false, user: null });
       return;
     }
 
     try {
-      const data: any = await apiClient.get('/auth/me');
-      set({ user: data.user, isAuthenticated: true });
-      await get().fetchWorkspaces();
+      const data: any = await apiClient.get('/auth/me', { timeoutMs: 8000 });
+      if (data && data.user) {
+        set({ user: data.user, isAuthenticated: true });
+        get().fetchWorkspaces().catch(() => {});
+      } else {
+        throw new Error('Invalid user payload');
+      }
     } catch (err) {
-      apiClient.setToken(null);
+      apiClient.clearAuth();
       set({ user: null, isAuthenticated: false });
     } finally {
       set({ isLoading: false });
