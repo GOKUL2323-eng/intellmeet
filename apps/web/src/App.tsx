@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
+import { apiClient } from './services/apiClient';
 
 // Layout & Pages
 import { AppLayout } from './components/AppLayout';
@@ -95,6 +96,8 @@ export const App: React.FC = () => {
   const { checkAuth } = useAuthStore();
 
   useEffect(() => {
+    // Eagerly ping the backend in the background to wake up cold-start cloud containers (e.g. Render)
+    apiClient.get('/health', { timeoutMs: 60000 }).catch(() => {});
     checkAuth();
   }, []);
 

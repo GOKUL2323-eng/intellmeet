@@ -11,6 +11,7 @@ export const SignInPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isSlow, setIsSlow] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -23,13 +24,17 @@ export const SignInPage: React.FC = () => {
       return;
     }
 
+    let slowTimer: NodeJS.Timeout | undefined;
     try {
       setIsLoading(true);
+      slowTimer = setTimeout(() => setIsSlow(true), 3000);
       await login(email, password);
       navigate('/dashboard');
     } catch (err: any) {
       setLocalError(err.message || 'Login failed. Please check your credentials.');
     } finally {
+      if (slowTimer) clearTimeout(slowTimer);
+      setIsSlow(false);
       setIsLoading(false);
     }
   };
@@ -121,7 +126,7 @@ export const SignInPage: React.FC = () => {
               className="w-full mt-2 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:opacity-50 text-white font-bold text-sm shadow-lg shadow-violet-600/30 flex items-center justify-center gap-2 transition"
             >
               {isLoading ? (
-                <span>Signing in...</span>
+                <span>{isSlow ? 'Waking up cloud server...' : 'Signing in...'}</span>
               ) : (
                 <>
                   <span>Sign In</span>
@@ -129,6 +134,11 @@ export const SignInPage: React.FC = () => {
                 </>
               )}
             </button>
+            {isSlow && (
+              <p className="text-[11px] text-amber-300/80 text-center mt-2 animate-pulse">
+                Waking up IntellMeet cloud server (idle free-tier services take ~25s). Hang tight!
+              </p>
+            )}
           </form>
 
           <div className="mt-6 pt-6 border-t border-white/5 text-center text-xs text-slate-400">

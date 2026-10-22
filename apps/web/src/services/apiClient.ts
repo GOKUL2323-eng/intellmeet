@@ -76,7 +76,7 @@ class ApiClient {
 
   async request<T>(endpoint: string, options: RequestInit & { timeoutMs?: number } = {}): Promise<T> {
     const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
-    const { timeoutMs = 15000, ...fetchOptions } = options;
+    const { timeoutMs = 60000, ...fetchOptions } = options;
     const headers = new Headers(fetchOptions.headers || {});
 
     if (!headers.has('Content-Type') && !(fetchOptions.body instanceof FormData)) {
@@ -175,7 +175,7 @@ class ApiClient {
       return response.text() as Promise<T>;
     } catch (err: any) {
       if (isTimedOut || err?.name === 'AbortError') {
-        throw new Error(`Request timed out after ${Math.round(timeoutMs / 1000)}s. Please check your network connection.`);
+        throw new Error(`The cloud server took longer than expected to respond (it may be waking up from cold sleep). Please retry now.`);
       }
       throw err;
     } finally {

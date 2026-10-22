@@ -30,7 +30,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (email: string, pass: string) => {
     set({ isLoading: true, error: null });
     try {
-      const data: any = await apiClient.post('/auth/login', { email, password: pass });
+      const data: any = await apiClient.post('/auth/login', { email, password: pass }, { timeoutMs: 60000 });
       apiClient.setToken(data.accessToken);
 
       if (data.refreshToken) {
@@ -58,11 +58,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   register: async (email: string, pass: string, fullName: string) => {
     set({ isLoading: true, error: null });
     try {
-      const data: any = await apiClient.post('/auth/register', {
-        email,
-        password: pass,
-        fullName
-      });
+      const data: any = await apiClient.post(
+        '/auth/register',
+        {
+          email,
+          password: pass,
+          fullName
+        },
+        { timeoutMs: 60000 }
+      );
       apiClient.setToken(data.accessToken);
 
       if (data.refreshToken) {
@@ -120,7 +124,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const refreshData: any = await apiClient.post(
           '/auth/refresh',
           { refreshToken: storedRefreshToken },
-          { timeoutMs: 8000 }
+          { timeoutMs: 20000 }
         );
         if (refreshData?.accessToken) {
           apiClient.setToken(refreshData.accessToken);
@@ -143,7 +147,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     try {
-      const data: any = await apiClient.get('/auth/me', { timeoutMs: 8000 });
+      const data: any = await apiClient.get('/auth/me', { timeoutMs: 20000 });
       if (data && data.user) {
         set({ user: data.user, isAuthenticated: true });
         get().fetchWorkspaces().catch(() => {});
