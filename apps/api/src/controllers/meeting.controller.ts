@@ -7,6 +7,7 @@ import { MeetingModel } from '../models/Meeting';
 import { MeetingSummaryModel } from '../models/MeetingSummary';
 import { MeetingTranscriptModel } from '../models/MeetingTranscript';
 import { ActionItemModel } from '../models/ActionItem';
+import { WorkspaceMembershipModel } from '../models/WorkspaceMembership';
 import { MeetingStatus } from '@intellmeet/shared';
 import { LiveKitService } from '../services/livekit.service';
 import { broadcastToMeeting } from '../sockets/socketHandler';
@@ -59,10 +60,25 @@ export class MeetingController {
 
   static async getById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const meeting = await MeetingService.getMeetingByIdOrCode(
+      let meeting = await MeetingService.getMeetingByIdOrCode(
         req.params.meetingId,
         req.workspaceId
       );
+
+      // If workspaceId was provided from another workspace in browser localStorage, check membership in meeting's workspace
+      if (!meeting) {
+        const potentialMeeting = await MeetingService.getMeetingByIdOrCode(req.params.meetingId);
+        if (potentialMeeting && req.user) {
+          const isMember = await WorkspaceMembershipModel.findOne({
+            workspaceId: potentialMeeting.workspaceId,
+            userId: req.user._id,
+            status: 'ACTIVE'
+          });
+          if (isMember) {
+            meeting = potentialMeeting;
+          }
+        }
+      }
 
       if (!meeting) {
         res.status(404).json({ error: 'Meeting not found.' });
@@ -70,6 +86,19 @@ export class MeetingController {
       }
 
       res.json({ meeting });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async getLobbyInfo(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const result = await MeetingService.getLobbyInfo(
+        req.params.meetingId,
+        req.user ? { id: req.user._id.toString(), fullName: req.user.fullName } : undefined
+      );
+
+      res.json(result);
     } catch (err) {
       next(err);
     }
@@ -333,8 +362,11 @@ export class MeetingController {
         return;
       }
 
-      const messages = await ChatService.getMeetingMessages(meeting._id.toString(), req.workspaceId);
-      res.json({ messages });
+      const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
+      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
+
+      const result = await ChatService.getMeetingMessages(meeting._id.toString(), req.workspaceId, page, limit);
+      res.json(result);
     } catch (err) {
       next(err);
     }
@@ -355,7 +387,18 @@ export class MeetingController {
         senderName: req.user!.fullName,
         senderAvatar: req.user!.avatarUrl,
         message: req.body.message,
-        messageType: req.body.messageType || 'CHAT'
+        messageType: req.body.messageType || 'CHAT',
+        clientMessageId: req.body.clientMessageId
+      });
+
+      broadcastToMeeting(meeting._id.toString(), 'meeting:chat', {
+        id: message._id.toString(),
+        meetingId: meeting._id.toString(),
+        senderId: req.user!._id.toString(),
+        senderName: req.user!.fullName,
+        message: message.message,
+        clientMessageId: message.clientMessageId,
+        createdAt: message.createdAt
       });
 
       res.status(201).json({ message });

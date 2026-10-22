@@ -103,7 +103,12 @@ export const MeetingRoomPage: React.FC = () => {
 
   const fetchMeetingData = async () => {
     try {
-      const data: any = await apiClient.get(`/meetings/${meetingId}`);
+      let data: any;
+      try {
+        data = await apiClient.get(`/meetings/${meetingId}`);
+      } catch {
+        data = await apiClient.get(`/meetings/${meetingId}/lobby`);
+      }
       setMeeting(data.meeting);
     } catch (err) {
       console.warn('Could not load meeting details:', err);

@@ -121,5 +121,6 @@ const TaskSchema = new Schema<ITaskDocument>(
 
 TaskSchema.index({ workspaceId: 1, status: 1 });
 TaskSchema.index({ workspaceId: 1, assigneeId: 1 });
+TaskSchema.index({ actionItemId: 1 }, { sparse: true });
 
 export const TaskModel = mongoose.model<ITaskDocument>('Task', TaskSchema);

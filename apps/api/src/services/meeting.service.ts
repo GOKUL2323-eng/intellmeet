@@ -2,9 +2,11 @@ import mongoose from 'mongoose';
 import crypto from 'crypto';
 import { MeetingModel, IMeetingDocument } from '../models/Meeting';
 import { MeetingParticipantModel } from '../models/MeetingParticipant';
+import { WorkspaceMembershipModel } from '../models/WorkspaceMembership';
 import { AuditLogModel } from '../models/AuditLog';
 import { MeetingStatus, ParticipantRole, AuditAction } from '@intellmeet/shared';
 import { AuditService } from './audit.service';
+import { LiveKitService } from './livekit.service';
 
 export class MeetingService {
   private static generateMeetingCode(): string {
@@ -47,6 +49,18 @@ export class MeetingService {
         allowUnmute: (data.accessSettings as any)?.allowUnmute ?? true,
         allowCamera: (data.accessSettings as any)?.allowCamera ?? true
       }
+    });
+
+    // 6. Create initial host participant record
+    await MeetingParticipantModel.create({
+      meetingId: meeting._id,
+      userId: new mongoose.Types.ObjectId(data.hostId),
+      role: ParticipantRole.HOST,
+      isMuted: false,
+      isCameraOff: false,
+      isScreenSharing: false,
+      isInWaitingRoom: false,
+      joinedAt: new Date()
     });
 
     await AuditService.log({
@@ -206,8 +220,8 @@ export class MeetingService {
       throw { statusCode: 404, message: 'Meeting not found.' };
     }
 
-    if (meeting.status === MeetingStatus.CANCELLED) {
-      throw { statusCode: 400, message: 'This meeting has been cancelled.' };
+    if (meeting.status === MeetingStatus.CANCELLED || meeting.status === MeetingStatus.ENDED) {
+      throw { statusCode: 400, message: 'This meeting has ended or was cancelled.' };
     }
 
     // Determine user role
@@ -229,9 +243,20 @@ export class MeetingService {
       throw { statusCode: 403, message: 'This meeting is locked by the host.' };
     }
 
-    // Check guest policy
+    // Check guest policy & workspace membership for private meetings
     if (!user && !meeting.accessSettings.allowGuests) {
       throw { statusCode: 403, message: 'This meeting does not allow guest participants.' };
+    }
+
+    if (user && !isHost && !isCoHost && !meeting.accessSettings.allowGuests) {
+      const membership = await WorkspaceMembershipModel.findOne({
+        workspaceId: meeting.workspaceId,
+        userId: new mongoose.Types.ObjectId(user.id),
+        status: 'ACTIVE'
+      });
+      if (!membership) {
+        throw { statusCode: 403, message: 'Forbidden: You are not authorized to join this private meeting.' };
+      }
     }
 
     // If meeting was scheduled, transition to LIVE on host start
@@ -251,18 +276,47 @@ export class MeetingService {
 
     const isInWaitingRoom = Boolean(meeting.accessSettings.waitingRoom && !isHost && !isCoHost);
 
-    // Record participant
-    const participant = await MeetingParticipantModel.create({
-      meetingId: meeting._id,
-      userId: user ? new mongoose.Types.ObjectId(user.id) : undefined,
-      guestName: cleanGuestName || (user ? user.fullName : 'Guest Participant'),
-      role,
-      isMuted: meeting.accessSettings.defaultMute,
-      isCameraOff: false,
-      isScreenSharing: false,
-      isInWaitingRoom,
-      joinedAt: new Date()
-    });
+    // Record or update existing participant to avoid duplicate records on refresh
+    let participant = null;
+    if (user) {
+      participant = await MeetingParticipantModel.findOne({
+        meetingId: meeting._id,
+        userId: new mongoose.Types.ObjectId(user.id)
+      });
+    }
+
+    if (participant) {
+      participant.role = role;
+      participant.isInWaitingRoom = isInWaitingRoom;
+      participant.leftAt = undefined;
+      participant.joinedAt = new Date();
+      participant.isMuted = meeting.accessSettings.defaultMute;
+      if (cleanGuestName) participant.guestName = cleanGuestName;
+      await participant.save();
+    } else {
+      participant = await MeetingParticipantModel.create({
+        meetingId: meeting._id,
+        userId: user ? new mongoose.Types.ObjectId(user.id) : undefined,
+        guestName: cleanGuestName || (user ? user.fullName : 'Guest Participant'),
+        role,
+        isMuted: meeting.accessSettings.defaultMute,
+        isCameraOff: false,
+        isScreenSharing: false,
+        isInWaitingRoom,
+        joinedAt: new Date()
+      });
+    }
+
+    if (user) {
+      await AuditService.log({
+        userId: user.id,
+        workspaceId: meeting.workspaceId.toString(),
+        action: AuditAction.PARTICIPANT_JOINED,
+        entityType: 'MeetingParticipant',
+        entityId: participant._id.toString(),
+        details: { role, isInWaitingRoom }
+      });
+    }
 
     return {
       meeting,
@@ -270,6 +324,62 @@ export class MeetingService {
       isHost,
       isCoHost,
       isInWaitingRoom
+    };
+  }
+
+  static async getLobbyInfo(idOrCode: string, user?: { id: string; fullName: string }) {
+    const meeting = await this.getMeetingByIdOrCode(idOrCode);
+    if (!meeting) {
+      throw { statusCode: 404, message: 'Meeting not found.' };
+    }
+
+    const hostId = this.getHostIdString(meeting);
+    const isHost = Boolean(user && hostId === user.id);
+    const isCoHost = Boolean(user && meeting.coHostIds?.some(id => id.toString() === user.id));
+
+    if (!isHost && !isCoHost && !meeting.accessSettings.allowGuests) {
+      if (!user) {
+        throw { statusCode: 403, message: 'Guest access is not permitted for this private meeting. Please sign in.' };
+      }
+      const membership = await WorkspaceMembershipModel.findOne({
+        workspaceId: meeting.workspaceId,
+        userId: new mongoose.Types.ObjectId(user.id),
+        status: 'ACTIVE'
+      });
+      if (!membership) {
+        throw { statusCode: 403, message: 'Forbidden: You do not have access to this private workspace meeting.' };
+      }
+    }
+
+    const hostUser = meeting.hostId as any;
+
+    return {
+      meeting: {
+        id: meeting._id.toString(),
+        meetingCode: meeting.meetingCode,
+        title: meeting.title,
+        description: meeting.description,
+        workspaceId: meeting.workspaceId.toString(),
+        host: {
+          fullName: hostUser?.fullName || 'Meeting Host',
+          avatarUrl: hostUser?.avatarUrl
+        },
+        scheduledStartTime: meeting.scheduledStartTime,
+        scheduledEndTime: meeting.scheduledEndTime,
+        status: meeting.status,
+        isLocked: meeting.isLocked ?? false,
+        accessSettings: {
+          allowGuests: meeting.accessSettings.allowGuests,
+          waitingRoom: meeting.accessSettings.waitingRoom,
+          defaultMute: meeting.accessSettings.defaultMute,
+          allowScreenShare: meeting.accessSettings.allowScreenShare,
+          allowChat: meeting.accessSettings.allowChat,
+          allowUnmute: meeting.accessSettings.allowUnmute,
+          allowCamera: meeting.accessSettings.allowCamera
+        }
+      },
+      isHost,
+      isCoHost
     };
   }
 
@@ -663,6 +773,24 @@ export class MeetingService {
     meeting.status = MeetingStatus.ENDED;
     meeting.actualEndTime = new Date();
     await meeting.save();
+
+    // 5. Update participant records and timestamps
+    await MeetingParticipantModel.updateMany(
+      { meetingId: meeting._id, leftAt: { $exists: false } },
+      { leftAt: new Date() }
+    );
+
+    // 3. Stop or revoke media access if LiveKit configured
+    if (LiveKitService.isConfigured()) {
+      try {
+        const client = LiveKitService.getRoomServiceClient();
+        if (client) {
+          await client.deleteRoom(meeting.meetingCode);
+        }
+      } catch (err) {
+        console.warn('[LiveKit] Could not delete room on meeting termination:', err);
+      }
+    }
 
     await AuditService.log({
       userId: hostUserId,

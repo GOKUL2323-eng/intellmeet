@@ -124,6 +124,7 @@ export interface IChatMessage {
   senderAvatar?: string;
   message: string;
   messageType: 'CHAT' | 'SYSTEM' | 'ACTION';
+  clientMessageId?: string;
   createdAt: string;
 }
 

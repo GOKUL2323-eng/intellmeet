@@ -140,7 +140,8 @@ export const updateSummarySchema = z.object({
 export const sendChatMessageSchema = z.object({
   meetingId: z.string().min(1),
   workspaceId: z.string().min(1),
-  message: z.string().min(1, 'Message cannot be empty').max(1000)
+  message: z.string().min(1, 'Message cannot be empty').max(1000),
+  clientMessageId: z.string().optional()
 });
 
 export const updateMemberRoleSchema = z.object({

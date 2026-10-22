@@ -8,6 +8,7 @@ export interface IChatMessageDocument extends Document {
   senderAvatar?: string;
   message: string;
   messageType: 'CHAT' | 'SYSTEM' | 'ACTION';
+  clientMessageId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -47,6 +48,11 @@ const ChatMessageSchema = new Schema<IChatMessageDocument>(
       type: String,
       enum: ['CHAT', 'SYSTEM', 'ACTION'],
       default: 'CHAT'
+    },
+    clientMessageId: {
+      type: String,
+      sparse: true,
+      index: true
     }
   },
   {
@@ -63,5 +69,6 @@ const ChatMessageSchema = new Schema<IChatMessageDocument>(
 );
 
 ChatMessageSchema.index({ meetingId: 1, createdAt: 1 });
+ChatMessageSchema.index({ meetingId: 1, clientMessageId: 1 }, { sparse: true, unique: true });
 
 export const ChatMessageModel = mongoose.model<IChatMessageDocument>('ChatMessage', ChatMessageSchema);

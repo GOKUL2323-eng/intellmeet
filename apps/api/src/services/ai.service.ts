@@ -5,8 +5,9 @@ import { MeetingModel } from '../models/Meeting';
 import { MeetingTranscriptModel } from '../models/MeetingTranscript';
 import { MeetingSummaryModel } from '../models/MeetingSummary';
 import { ActionItemModel } from '../models/ActionItem';
-import { AIProcessingStatus, TaskPriority, AuditAction } from '@intellmeet/shared';
+import { AIProcessingStatus, TaskPriority, AuditAction, NotificationType } from '@intellmeet/shared';
 import { AuditService } from './audit.service';
+import { NotificationService } from './notification.service';
 
 const aiSummaryOutputSchema = z.object({
   overview: z.string().min(5),
@@ -156,6 +157,17 @@ export class AIService {
         entityId: summary._id.toString(),
         details: { actionItemsExtracted: savedActionItems.length }
       });
+
+      // 9. Notify authorized host and requester when processing completes
+      await NotificationService.createNotification({
+        userId: meeting.hostId.toString(),
+        workspaceId: meeting.workspaceId.toString(),
+        title: 'AI Summary Ready',
+        message: `AI intelligence summary for meeting "${meeting.title}" is ready.`,
+        type: NotificationType.AI_SUMMARY_READY,
+        link: `/meetings/${meeting._id}`,
+        dedupKey: `ai_summary_${meeting._id}`
+      }).catch(err => console.warn('Could not dispatch AI completion notification:', err));
 
       return {
         summary,

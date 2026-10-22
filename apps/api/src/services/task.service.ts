@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { TaskModel, ITaskDocument } from '../models/Task';
 import { ActionItemModel } from '../models/ActionItem';
+import { WorkspaceMembershipModel } from '../models/WorkspaceMembership';
 import { TaskStatus, TaskPriority, AuditAction, NotificationType } from '@intellmeet/shared';
 import { AuditService } from './audit.service';
 import { NotificationService } from './notification.service';
@@ -20,6 +21,28 @@ export class TaskService {
     status?: TaskStatus;
     tags?: string[];
   }): Promise<ITaskDocument> {
+    // Prevent duplicate task creation if originating action item was already converted
+    if (data.actionItemId && mongoose.Types.ObjectId.isValid(data.actionItemId)) {
+      const existingTask = await TaskModel.findOne({
+        actionItemId: new mongoose.Types.ObjectId(data.actionItemId)
+      });
+      if (existingTask) {
+        return existingTask;
+      }
+    }
+
+    // Validate assignee belongs to the target workspace
+    if (data.assigneeId && mongoose.Types.ObjectId.isValid(data.assigneeId)) {
+      const isMember = await WorkspaceMembershipModel.findOne({
+        workspaceId: new mongoose.Types.ObjectId(data.workspaceId),
+        userId: new mongoose.Types.ObjectId(data.assigneeId),
+        status: 'ACTIVE'
+      });
+      if (!isMember) {
+        throw { statusCode: 400, message: 'Assignee is not an active member of this workspace.' };
+      }
+    }
+
     const task = await TaskModel.create({
       workspaceId: new mongoose.Types.ObjectId(data.workspaceId),
       creatorId: new mongoose.Types.ObjectId(data.creatorId),
@@ -131,6 +154,16 @@ export class TaskService {
     }
 
     if (updates.assigneeId !== undefined) {
+      if (updates.assigneeId) {
+        const isMember = await WorkspaceMembershipModel.findOne({
+          workspaceId: new mongoose.Types.ObjectId(workspaceId),
+          userId: new mongoose.Types.ObjectId(updates.assigneeId),
+          status: 'ACTIVE'
+        });
+        if (!isMember) {
+          throw { statusCode: 400, message: 'Assignee is not an active member of this workspace.' };
+        }
+      }
       task.assigneeId = updates.assigneeId
         ? new mongoose.Types.ObjectId(updates.assigneeId)
         : undefined;
@@ -248,6 +281,28 @@ export class TaskService {
 
     if (!actionItem) {
       throw { statusCode: 404, message: 'Action item not found.' };
+    }
+
+    // Idempotent retry check: if already converted and linked to a task, return existing task
+    if (actionItem.status === 'CONVERTED' && actionItem.taskId) {
+      const existingTask = await TaskModel.findOne({
+        _id: actionItem.taskId,
+        workspaceId: new mongoose.Types.ObjectId(workspaceId)
+      });
+      if (existingTask) {
+        return { task: existingTask, actionItem };
+      }
+    }
+
+    const existingByActionItem = await TaskModel.findOne({
+      actionItemId: actionItem._id,
+      workspaceId: new mongoose.Types.ObjectId(workspaceId)
+    });
+    if (existingByActionItem) {
+      actionItem.status = 'CONVERTED';
+      actionItem.taskId = existingByActionItem._id as mongoose.Types.ObjectId;
+      await actionItem.save();
+      return { task: existingByActionItem, actionItem };
     }
 
     const task = await this.createTask({

@@ -258,6 +258,21 @@ export function setupSocketHandlers(io: SocketIOServer): void {
 
       room.set(socket.id, participant);
 
+      // Persist socketId and active presence to database
+      if (user?.userId) {
+        MeetingParticipantModel.findOneAndUpdate(
+          { meetingId: meeting._id, userId: new mongoose.Types.ObjectId(user.userId) },
+          { socketId: socket.id, leftAt: undefined, joinedAt: new Date(), role },
+          { upsert: true }
+        ).catch(err => console.warn('Could not update participant socketId in DB:', err));
+      } else if (fullName) {
+        MeetingParticipantModel.findOneAndUpdate(
+          { meetingId: meeting._id, guestName: fullName, leftAt: { $exists: false } },
+          { socketId: socket.id, joinedAt: new Date(), role },
+          { upsert: true }
+        ).catch(err => console.warn('Could not update guest participant socketId in DB:', err));
+      }
+
       const existingParticipants = Array.from(room.values()).filter(p => p.socketId !== socket.id);
       const waitingList = Array.from(waitingRooms.get(meetingId)?.values() || []);
 
@@ -823,6 +838,7 @@ export function setupSocketHandlers(io: SocketIOServer): void {
 
       const cleanMessage = data.message.trim().slice(0, 1000);
       const senderName = participant.fullName || 'Attendee';
+      const clientMessageId = (data as any).clientMessageId;
 
       const payload = {
         id: crypto.randomUUID(),
@@ -830,6 +846,7 @@ export function setupSocketHandlers(io: SocketIOServer): void {
         senderId: user?.userId || 'guest',
         senderName,
         message: cleanMessage,
+        clientMessageId,
         createdAt: new Date().toISOString()
       };
 
@@ -839,7 +856,8 @@ export function setupSocketHandlers(io: SocketIOServer): void {
           workspaceId: data.workspaceId,
           senderId: user.userId,
           senderName,
-          message: cleanMessage
+          message: cleanMessage,
+          clientMessageId
         }).catch(err => console.error('Error saving chat message:', err));
       }
 
@@ -886,6 +904,11 @@ export function setupSocketHandlers(io: SocketIOServer): void {
           meeting.status = 'ENDED' as any;
           meeting.actualEndTime = new Date();
           await meeting.save();
+
+          await MeetingParticipantModel.updateMany(
+            { meetingId: meeting._id, leftAt: { $exists: false } },
+            { leftAt: new Date() }
+          );
 
           if (user?.userId) {
             await AuditService.log({
@@ -948,6 +971,17 @@ export function setupSocketHandlers(io: SocketIOServer): void {
     if (participant) {
       room.delete(targetSocketId);
       socket.leave(`meeting:${meetingId}`);
+
+      // Persist participant departure in database
+      const query: Record<string, unknown> = {
+        socketId: targetSocketId,
+        leftAt: { $exists: false }
+      };
+      if (mongoose.Types.ObjectId.isValid(meetingId)) {
+        query.meetingId = new mongoose.Types.ObjectId(meetingId);
+      }
+      MeetingParticipantModel.updateOne(query, { leftAt: new Date() })
+        .catch(err => console.warn('Could not update participant leftAt in DB:', err));
 
       socket.to(`meeting:${meetingId}`).emit('meeting:participant-left', {
         socketId: targetSocketId,

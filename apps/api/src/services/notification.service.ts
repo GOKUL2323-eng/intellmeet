@@ -16,14 +16,40 @@ export class NotificationService {
     message: string;
     type: NotificationType;
     link?: string;
+    dedupKey?: string;
   }): Promise<INotificationDocument> {
+    const userObjectId = new mongoose.Types.ObjectId(data.userId);
+
+    if (data.dedupKey) {
+      const existing = await NotificationModel.findOne({
+        userId: userObjectId,
+        dedupKey: data.dedupKey
+      });
+      if (existing) {
+        return existing;
+      }
+    } else if (data.link) {
+      // Automatic short-term deduplication against rapid duplicate submissions (15s window)
+      const recentThreshold = new Date(Date.now() - 15000);
+      const existingRecent = await NotificationModel.findOne({
+        userId: userObjectId,
+        type: data.type,
+        link: data.link,
+        createdAt: { $gte: recentThreshold }
+      });
+      if (existingRecent) {
+        return existingRecent;
+      }
+    }
+
     const notification = await NotificationModel.create({
-      userId: new mongoose.Types.ObjectId(data.userId),
+      userId: userObjectId,
       workspaceId: data.workspaceId ? new mongoose.Types.ObjectId(data.workspaceId) : undefined,
       title: data.title,
       message: data.message,
       type: data.type,
       link: data.link,
+      dedupKey: data.dedupKey,
       isRead: false
     });
 
@@ -43,6 +69,14 @@ export class NotificationService {
   }
 
   static async getUserNotifications(userId: string, page = 1, limit = 20) {
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return {
+        notifications: [],
+        unreadCount: 0,
+        pagination: { page, limit, total: 0, totalPages: 0 }
+      };
+    }
+
     const skip = (page - 1) * limit;
     const query = { userId: new mongoose.Types.ObjectId(userId) };
 
@@ -65,6 +99,10 @@ export class NotificationService {
   }
 
   static async markAsRead(notificationId: string, userId: string) {
+    if (!mongoose.Types.ObjectId.isValid(notificationId) || !mongoose.Types.ObjectId.isValid(userId)) {
+      return null;
+    }
+
     return NotificationModel.findOneAndUpdate(
       {
         _id: new mongoose.Types.ObjectId(notificationId),
@@ -76,6 +114,10 @@ export class NotificationService {
   }
 
   static async markAllAsRead(userId: string) {
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return { success: false };
+    }
+
     await NotificationModel.updateMany(
       { userId: new mongoose.Types.ObjectId(userId), isRead: false },
       { isRead: true }

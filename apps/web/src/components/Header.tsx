@@ -165,7 +165,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileSidebar }) => {
                       className={`p-3 text-xs hover:bg-slate-800/50 cursor-pointer ${
                         !n.isRead ? 'bg-violet-950/20' : ''
                       }`}
-                      onClick={() => {
+                      onClick={async () => {
+                        if (!n.isRead) {
+                          apiClient.patch(`/notifications/${n.id}/read`).catch(() => {});
+                          setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, isRead: true } : item));
+                          setUnreadCount(prev => Math.max(0, prev - 1));
+                        }
                         if (n.link) navigate(n.link);
                         setShowNotifications(false);
                       }}

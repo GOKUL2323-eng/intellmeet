@@ -27,6 +27,14 @@ router.post('/:meetingId/join', (req, res, next) => {
   next();
 }, MeetingController.join);
 
+// Guest/Public lobby info endpoint
+router.get('/:meetingId/lobby', (req, res, next) => {
+  if (req.headers.authorization || req.cookies?.accessToken) {
+    return authenticate(req, res, next);
+  }
+  next();
+}, MeetingController.getLobbyInfo);
+
 // Remaining endpoints require authentication
 router.use(authenticate);
 

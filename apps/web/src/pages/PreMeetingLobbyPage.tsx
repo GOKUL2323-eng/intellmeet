@@ -51,7 +51,12 @@ export const PreMeetingLobbyPage: React.FC = () => {
   const fetchMeetingInfo = async () => {
     try {
       setIsLoading(true);
-      const data: any = await apiClient.get(`/meetings/${meetingId}`);
+      let data: any;
+      try {
+        data = await apiClient.get(`/meetings/${meetingId}/lobby`);
+      } catch {
+        data = await apiClient.get(`/meetings/${meetingId}`);
+      }
       setMeeting(data.meeting);
       if (data.meeting?.accessSettings?.defaultMute) {
         setIsMuted(true);

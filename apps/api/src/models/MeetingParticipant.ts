@@ -110,6 +110,8 @@ const MeetingParticipantSchema = new Schema<IMeetingParticipantDocument>(
 );
 
 MeetingParticipantSchema.index({ meetingId: 1, userId: 1 });
+MeetingParticipantSchema.index({ meetingId: 1, socketId: 1 }, { sparse: true });
+MeetingParticipantSchema.index({ meetingId: 1, leftAt: 1 });
 
 export const MeetingParticipantModel = mongoose.model<IMeetingParticipantDocument>(
   'MeetingParticipant',
