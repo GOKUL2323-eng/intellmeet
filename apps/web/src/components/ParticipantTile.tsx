@@ -43,6 +43,36 @@ export const ParticipantTile: React.FC<Props> = ({
   const role = isLocal ? (isHost ? 'HOST' : isCoHost ? 'CO_HOST' : 'ATTENDEE') : participant?.role;
   const quality = isLocal ? 'good' : participant?.networkQuality || 'good';
 
+  const [trackVersion, setTrackVersion] = useState(0);
+
+  // Re-evaluate whenever tracks are added, removed, unmuted or ended in the MediaStream
+  useEffect(() => {
+    if (!stream) return;
+    const handleTrackChange = () => {
+      setTrackVersion(v => v + 1);
+    };
+
+    stream.addEventListener('addtrack', handleTrackChange);
+    stream.addEventListener('removetrack', handleTrackChange);
+
+    const tracks = stream.getTracks();
+    tracks.forEach(t => {
+      t.addEventListener('ended', handleTrackChange);
+      t.addEventListener('mute', handleTrackChange);
+      t.addEventListener('unmute', handleTrackChange);
+    });
+
+    return () => {
+      stream.removeEventListener('addtrack', handleTrackChange);
+      stream.removeEventListener('removetrack', handleTrackChange);
+      tracks.forEach(t => {
+        t.removeEventListener('ended', handleTrackChange);
+        t.removeEventListener('mute', handleTrackChange);
+        t.removeEventListener('unmute', handleTrackChange);
+      });
+    };
+  }, [stream]);
+
   // Check if active video track exists in stream
   const hasLiveVideoTrack = Boolean(
     stream &&
@@ -54,31 +84,42 @@ export const ParticipantTile: React.FC<Props> = ({
 
   useEffect(() => {
     const videoEl = videoRef.current;
-    if (videoEl && stream) {
-      if (videoEl.srcObject !== stream) {
-        videoEl.srcObject = stream;
-      }
-      const playPromise = videoEl.play();
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => setIsVideoLoaded(true))
-          .catch(() => {
-            // Autoplay might be temporarily restricted on mobile prior to user interaction
-            const unlockAutoplay = () => {
-              if (videoEl) {
-                videoEl.play().then(() => setIsVideoLoaded(true)).catch(() => {});
-              }
-              window.removeEventListener('click', unlockAutoplay);
-              window.removeEventListener('touchstart', unlockAutoplay);
-            };
-            window.addEventListener('click', unlockAutoplay, { once: true });
-            window.addEventListener('touchstart', unlockAutoplay, { once: true });
-          });
-      }
-    } else {
+    if (!videoEl || !stream) {
       setIsVideoLoaded(false);
+      return;
     }
-  }, [stream, shouldRenderVideo]);
+
+    if (videoEl.srcObject !== stream) {
+      videoEl.srcObject = stream;
+    }
+
+    let isSubscribed = true;
+    const attemptPlay = async () => {
+      try {
+        await videoEl.play();
+        if (isSubscribed) {
+          setIsVideoLoaded(true);
+        }
+      } catch (err) {
+        // Unlock on first interaction if autoplay policy temporarily blocks
+        const unlockAutoplay = () => {
+          if (videoEl && isSubscribed) {
+            videoEl.play().then(() => setIsVideoLoaded(true)).catch(() => {});
+          }
+          window.removeEventListener('click', unlockAutoplay);
+          window.removeEventListener('touchstart', unlockAutoplay);
+        };
+        window.addEventListener('click', unlockAutoplay, { once: true });
+        window.addEventListener('touchstart', unlockAutoplay, { once: true });
+      }
+    };
+
+    attemptPlay();
+
+    return () => {
+      isSubscribed = false;
+    };
+  }, [stream, shouldRenderVideo, trackVersion]);
 
   return (
     <div
@@ -94,15 +135,16 @@ export const ParticipantTile: React.FC<Props> = ({
         autoPlay
         playsInline
         muted={isLocal} // Always mute local video element to prevent audio loopback
+        onLoadedMetadata={() => setIsVideoLoaded(true)}
         onLoadedData={() => setIsVideoLoaded(true)}
         onPlaying={() => setIsVideoLoaded(true)}
         className={`w-full h-full object-cover transition-opacity duration-300 ${
-          shouldRenderVideo && isVideoLoaded ? 'opacity-100' : 'opacity-0 absolute'
+          shouldRenderVideo ? (isVideoLoaded ? 'opacity-100' : 'opacity-90') : 'opacity-0 hidden'
         } ${isLocal && !isScreenSharing ? 'scale-x-[-1]' : ''}`}
       />
 
       {/* Avatar Fallback when Camera is Off or Connecting */}
-      {(!shouldRenderVideo || !isVideoLoaded) && (
+      {!shouldRenderVideo && (
         <div className="flex flex-col items-center justify-center p-4 text-center z-10 select-none animate-fadeIn">
           <div
             className={`w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-gradient-to-tr from-violet-600 via-indigo-600 to-cyan-500 flex items-center justify-center font-bold text-xl sm:text-3xl text-white shadow-xl shadow-violet-600/30 transition-transform ${

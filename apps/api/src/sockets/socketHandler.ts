@@ -235,12 +235,18 @@ export function setupSocketHandlers(io: SocketIOServer): void {
     ) {
       const meetingId = meeting._id.toString();
       socket.join(`meeting:${meetingId}`);
+      if (meeting.meetingCode) {
+        socket.join(`meeting:${meeting.meetingCode}`);
+      }
 
       if (!activeRooms.has(meetingId)) {
         activeRooms.set(meetingId, new Map());
       }
 
       const room = activeRooms.get(meetingId)!;
+      if (meeting.meetingCode) {
+        activeRooms.set(meeting.meetingCode, room);
+      }
       const participant: ISocketParticipant = {
         socketId: socket.id,
         meetingId,

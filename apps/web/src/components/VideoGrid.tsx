@@ -29,8 +29,8 @@ export const VideoGrid: React.FC<Props> = ({
     // Single Participant
     if (totalCount === 1) {
       return (
-        <div className="w-full h-full max-w-5xl max-h-full flex items-center justify-center p-1">
-          <div className="w-full h-full max-h-[80vh] aspect-video">
+        <div className="w-full h-full max-w-5xl flex items-center justify-center p-1 sm:p-2 min-h-0">
+          <div className="w-full max-h-full aspect-video min-h-0 flex items-center justify-center">
             <ParticipantTile
               isLocal
               localStream={localStream}

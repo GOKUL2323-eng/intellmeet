@@ -60,6 +60,16 @@ export const MeetingRoomPage: React.FC = () => {
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
+  const handleMeetingEnded = React.useCallback((msg?: string) => {
+    alert(msg || 'The host has ended this meeting for everyone.');
+    navigate(`/meetings/${meetingId}`);
+  }, [meetingId, navigate]);
+
+  const handleParticipantRemoved = React.useCallback((reason?: string) => {
+    alert(reason || 'You have been removed from this meeting by the host.');
+    navigate('/dashboard');
+  }, [navigate]);
+
   // Initialize WebRTC with complete host control & moderation support
   const {
     localStream,
@@ -84,14 +94,8 @@ export const MeetingRoomPage: React.FC = () => {
     initialMuted,
     initialCameraOff,
     guestName,
-    (msg) => {
-      alert(msg || 'The host has ended this meeting for everyone.');
-      navigate(`/meetings/${meeting?.id || meetingId}`);
-    },
-    (reason) => {
-      alert(reason || 'You have been removed from this meeting by the host.');
-      navigate('/dashboard');
-    }
+    handleMeetingEnded,
+    handleParticipantRemoved
   );
 
   useEffect(() => {
