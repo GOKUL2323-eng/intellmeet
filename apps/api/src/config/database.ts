@@ -14,10 +14,13 @@ export async function connectDatabase(): Promise<typeof mongoose> {
   mongoose.set('strictQuery', true);
 
   try {
-    // First try connecting to configured MONGODB_URI with a 15-second timeout for cloud clusters
+    // Determine server selection timeout: fast 1.5s timeout for local URI fallback, 15s for cloud Atlas
+    const isLocalUri = config.MONGODB_URI.includes('127.0.0.1') || config.MONGODB_URI.includes('localhost');
+    const serverSelectionTimeoutMS = isLocalUri ? 1500 : 15000;
+
     console.log(`🔌 Attempting connection to MongoDB at: ${config.MONGODB_URI.replace(/:([^:@]+)@/, ':****@')}`);
     await mongoose.connect(config.MONGODB_URI, {
-      serverSelectionTimeoutMS: 15000
+      serverSelectionTimeoutMS
     });
     console.log('✅ Connected to MongoDB server successfully.');
     return mongoose;

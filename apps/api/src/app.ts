@@ -12,6 +12,9 @@ import { apiLimiter } from './middleware/rateLimiter';
 export function createApp(): Application {
   const app = express();
 
+  // Trust first proxy for correct client IP detection behind Cloudflare, Render, and Vercel
+  app.set('trust proxy', 1);
+
   // Security Headers
   app.use(
     helmet({
@@ -31,9 +34,12 @@ export function createApp(): Application {
   );
 
   // CORS allowlisting
-  const allowedOrigins = config.CORS_ORIGINS.split(',')
-    .map(o => o.trim().replace(/\/$/, ''))
-    .filter(Boolean);
+  const allowedOrigins = [
+    'https://intellmeet-xi.vercel.app',
+    ...config.CORS_ORIGINS.split(',')
+      .map(o => o.trim().replace(/\/$/, ''))
+      .filter(Boolean)
+  ];
   app.use(
     cors({
       origin: (origin, callback) => {

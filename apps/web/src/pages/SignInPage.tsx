@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Sparkles, ArrowRight, Lock, Mail, AlertCircle, Zap } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { Logo } from '../components/Logo';
 
 export const SignInPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login, error, clearError } = useAuthStore();
 
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => searchParams.get('email') || '');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSlow, setIsSlow] = useState(false);

@@ -97,8 +97,24 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     // Eagerly ping the backend in the background to wake up cold-start cloud containers (e.g. Render)
-    apiClient.get('/health', { timeoutMs: 60000 }).catch(() => {});
+    let isMounted = true;
+    let attempts = 0;
+    const warmUp = async () => {
+      try {
+        await apiClient.get('/health', { timeoutMs: 15000 });
+      } catch {
+        attempts++;
+        if (isMounted && attempts < 4) {
+          setTimeout(warmUp, 3500);
+        }
+      }
+    };
+    warmUp();
     checkAuth();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   return (

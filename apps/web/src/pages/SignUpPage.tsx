@@ -62,9 +62,21 @@ export const SignUpPage: React.FC = () => {
 
         <div className="rounded-2xl bg-slate-900/80 border border-white/10 p-8 shadow-2xl backdrop-blur-xl">
           {(localError || error) && (
-            <div className="mb-6 p-3.5 rounded-xl bg-rose-950/40 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2.5">
-              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-              <span>{localError || error}</span>
+            <div className="mb-6 p-3.5 rounded-xl bg-rose-950/40 border border-rose-500/30 text-rose-300 text-xs flex flex-col gap-1.5">
+              <div className="flex items-center gap-2.5">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                <span>{localError || error}</span>
+              </div>
+              {(localError || error)?.toLowerCase().includes('already exists') && (
+                <div className="pl-6 pt-1">
+                  <Link
+                    to={`/signin?email=${encodeURIComponent(email)}`}
+                    className="text-violet-300 font-semibold hover:underline"
+                  >
+                    Click here to Sign In with this email &rarr;
+                  </Link>
+                </div>
+              )}
             </div>
           )}
 

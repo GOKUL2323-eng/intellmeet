@@ -11,7 +11,10 @@ const normalizeApiUrl = (url?: string): string => {
   return `https://${trimmed}`;
 };
 
-const API_HOST = normalizeApiUrl(import.meta.env.VITE_API_URL);
+const DEFAULT_CLOUD_API = 'https://intellmeet-api-w344.onrender.com';
+const API_HOST = normalizeApiUrl(
+  import.meta.env.VITE_API_URL || (import.meta.env.PROD ? DEFAULT_CLOUD_API : '')
+);
 const API_BASE_URL = `${API_HOST}/api/v1`;
 
 class ApiClient {
@@ -74,9 +77,12 @@ class ApiClient {
     this.setWorkspaceId(null);
   }
 
-  async request<T>(endpoint: string, options: RequestInit & { timeoutMs?: number } = {}): Promise<T> {
+  async request<T>(
+    endpoint: string,
+    options: RequestInit & { timeoutMs?: number; _retryCount?: number } = {}
+  ): Promise<T> {
     const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
-    const { timeoutMs = 60000, ...fetchOptions } = options;
+    const { timeoutMs = 60000, _retryCount = 0, ...fetchOptions } = options;
     const headers = new Headers(fetchOptions.headers || {});
 
     if (!headers.has('Content-Type') && !(fetchOptions.body instanceof FormData)) {
@@ -157,6 +163,13 @@ class ApiClient {
         }
       }
 
+      // If server returned 502/503/504 Bad Gateway (Render container cold-starting), retry once automatically
+      if ([502, 503, 504].includes(response.status) && _retryCount < 1) {
+        clearTimeout(timeoutTimer);
+        await new Promise((resolve) => setTimeout(resolve, 2500));
+        return this.request<T>(endpoint, { ...options, _retryCount: _retryCount + 1 });
+      }
+
       if (!response.ok) {
         const err = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
         throw new Error(err.error || `Request failed with status ${response.status}`);
@@ -174,6 +187,11 @@ class ApiClient {
 
       return response.text() as Promise<T>;
     } catch (err: any) {
+      if ((isTimedOut || err?.name === 'AbortError') && _retryCount < 1) {
+        clearTimeout(timeoutTimer);
+        await new Promise((resolve) => setTimeout(resolve, 2500));
+        return this.request<T>(endpoint, { ...options, _retryCount: _retryCount + 1 });
+      }
       if (isTimedOut || err?.name === 'AbortError') {
         throw new Error(`The cloud server took longer than expected to respond (it may be waking up from cold sleep). Please retry now.`);
       }
