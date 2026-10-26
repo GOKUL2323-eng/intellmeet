@@ -20,8 +20,6 @@ async function bootstrap() {
       await seedDatabase(false);
     }
 
-    // Clean up probe test accounts if present so user can sign up smoothly
-    await UserModel.deleteMany({ email: { $in: ['demontxt.01@gmail.com', 'test_probe_user_99@gmail.com'] } }).catch(() => {});
 
     // 2. Initialize Express App
     const app = createApp();

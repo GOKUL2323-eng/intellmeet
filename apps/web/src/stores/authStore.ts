@@ -30,7 +30,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (email: string, pass: string) => {
     set({ isLoading: true, error: null });
     try {
-      const data: any = await apiClient.post('/auth/login', { email, password: pass }, { timeoutMs: 60000 });
+      const data: any = await apiClient.post('/auth/login', { email, password: pass }, { timeoutMs: 15000 });
       apiClient.setToken(data.accessToken);
 
       if (data.refreshToken) {
@@ -65,7 +65,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           password: pass,
           fullName
         },
-        { timeoutMs: 60000 }
+        { timeoutMs: 15000 }
       );
       apiClient.setToken(data.accessToken);
 

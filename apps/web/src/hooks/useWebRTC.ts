@@ -409,11 +409,10 @@ export function useWebRTC(
       await startMedia();
       if (!active) return;
 
-      const DEFAULT_CLOUD_API = 'https://intellmeet-api-w344.onrender.com';
       const rawSocketTarget = (
         import.meta.env.VITE_SOCKET_URL ||
         import.meta.env.VITE_API_URL ||
-        (import.meta.env.PROD ? DEFAULT_CLOUD_API : '')
+        ''
       ).trim().replace(/\/$/, '');
       const socketTarget = rawSocketTarget
         ? (rawSocketTarget.startsWith('http://') || rawSocketTarget.startsWith('https://')
