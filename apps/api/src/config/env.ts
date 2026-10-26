@@ -28,7 +28,10 @@ const envSchema = z.object({
   TURN_CREDENTIAL: z.string().optional(),
   LIVEKIT_URL: z.string().optional(),
   LIVEKIT_API_KEY: z.string().optional(),
-  LIVEKIT_API_SECRET: z.string().optional()
+  LIVEKIT_API_SECRET: z.string().optional(),
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_REDIRECT_URI: z.string().optional()
 }).superRefine((data, ctx) => {
   if (data.NODE_ENV === 'production') {
     if (data.JWT_ACCESS_SECRET === 'intellmeet-super-secret-access-key-2025-secure!' || data.JWT_ACCESS_SECRET.length < 32) {

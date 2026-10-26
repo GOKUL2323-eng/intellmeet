@@ -47,11 +47,12 @@ export const MeetingRoomPage: React.FC = () => {
     resetMeetingState
   } = useMeetingStore();
 
+  const searchParams = new URLSearchParams(location.search);
   const state = location.state as any;
-  const initialMuted = state?.initialMuted ?? false;
-  const initialCameraOff = state?.initialCameraOff ?? false;
+  const initialMuted = state?.initialMuted ?? (searchParams.get('muted') === 'true');
+  const initialCameraOff = state?.initialCameraOff ?? (searchParams.get('cameraOff') === 'true');
   const consentGranted = state?.consentGranted ?? true;
-  const guestName = state?.guestName;
+  const guestName = state?.guestName ?? (searchParams.get('name') || undefined);
 
   const [meeting, setMeeting] = useState<any>(null);
   const [summaryData, setSummaryData] = useState<any>(null);
@@ -88,7 +89,10 @@ export const MeetingRoomPage: React.FC = () => {
     muteAllParticipants,
     moderateParticipant,
     updateMeetingPermissions,
-    endMeetingForEveryone
+    endMeetingForEveryone,
+    availableCameras,
+    currentCameraId,
+    switchCamera
   } = useWebRTC(
     meetingId || 'room',
     initialMuted,
@@ -310,6 +314,9 @@ export const MeetingRoomPage: React.FC = () => {
         onLeaveMeeting={handleLeaveMeeting}
         onEndMeetingForEveryone={endMeetingForEveryone}
         onTriggerAISummary={handleTriggerAISummary}
+        onSwitchCamera={switchCamera}
+        availableCameras={availableCameras}
+        currentCameraId={currentCameraId}
         isHost={isHost}
         isCoHost={isCoHost}
       />

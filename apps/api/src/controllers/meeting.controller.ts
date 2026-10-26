@@ -11,6 +11,7 @@ import { WorkspaceMembershipModel } from '../models/WorkspaceMembership';
 import { MeetingStatus } from '@intellmeet/shared';
 import { LiveKitService } from '../services/livekit.service';
 import { broadcastToMeeting } from '../sockets/socketHandler';
+import { GoogleMeetService } from '../services/googleMeet.service';
 import { config } from '../config/env';
 
 export class MeetingController {
@@ -503,6 +504,48 @@ export class MeetingController {
       );
 
       res.status(201).json({ message: 'Transcript saved.', transcript });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async getIceServers(req: Request, res: Response): Promise<void> {
+    const stunUrls = (config.STUN_URLS || 'stun:stun.l.google.com:19302,stun:stun1.l.google.com:19302')
+      .split(',')
+      .map(u => u.trim())
+      .filter(Boolean);
+
+    const iceServers: Array<{ urls: string | string[]; username?: string; credential?: string }> = [
+      { urls: stunUrls }
+    ];
+
+    if (config.TURN_URL) {
+      const turnUrls = config.TURN_URL.split(',').map(u => u.trim()).filter(Boolean);
+      const turnConfig: { urls: string[]; username?: string; credential?: string } = { urls: turnUrls };
+      if (config.TURN_USERNAME) turnConfig.username = config.TURN_USERNAME;
+      if (config.TURN_CREDENTIAL) turnConfig.credential = config.TURN_CREDENTIAL;
+      iceServers.push(turnConfig);
+    }
+
+    res.json({ iceServers });
+  }
+
+  static async createGoogleMeeting(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const workspaceId = req.workspaceId!;
+      const userId = req.user!._id.toString();
+
+      const meeting = await GoogleMeetService.createGoogleMeeting(userId, workspaceId, {
+        title: req.body.title,
+        description: req.body.description,
+        scheduledStartTime: new Date(req.body.scheduledStartTime),
+        scheduledEndTime: new Date(req.body.scheduledEndTime)
+      });
+
+      res.status(201).json({
+        message: 'Google Meet meeting space successfully scheduled.',
+        meeting
+      });
     } catch (err) {
       next(err);
     }

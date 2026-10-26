@@ -14,10 +14,14 @@ import {
   lockMeetingSchema,
   muteAllSchema,
   moderateParticipantSchema,
-  coHostAssignmentSchema
+  coHostAssignmentSchema,
+  createGoogleMeetingSchema
 } from '@intellmeet/shared';
 
 const router = Router();
+
+// ICE Servers configuration (STUN/TURN) - accessible for WebRTC room & lobby coordination
+router.get('/ice-servers', MeetingController.getIceServers);
 
 // Guest/Public join does not strictly require auth header, but authenticated users are identified
 router.post('/:meetingId/join', (req, res, next) => {
@@ -40,6 +44,7 @@ router.use(authenticate);
 
 router.get('/', requireWorkspaceMember, MeetingController.list);
 router.post('/', requireWorkspaceMember, validateBody(createMeetingSchema), MeetingController.create);
+router.post('/google-meet', requireWorkspaceMember, validateBody(createGoogleMeetingSchema), MeetingController.createGoogleMeeting);
 
 router.get('/:meetingId', requireWorkspaceMember, MeetingController.getById);
 router.patch('/:meetingId', requireWorkspaceMember, validateBody(updateMeetingSchema), MeetingController.update);

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Sparkles, ArrowRight, Lock, Mail, AlertCircle, Zap } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
+import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { Logo } from '../components/Logo';
 
 export const SignInPage: React.FC = () => {
@@ -58,14 +59,31 @@ export const SignInPage: React.FC = () => {
 
         {/* Form Card */}
         <div className="rounded-2xl bg-slate-900/80 border border-white/10 p-8 shadow-2xl backdrop-blur-xl">
+          {/* Google Sign In Option */}
+          <div className="mb-5">
+            <GoogleSignInButton
+              text="signin_with"
+              onSuccess={() => navigate('/dashboard')}
+              onError={(err) => setLocalError(err)}
+            />
+          </div>
+
+          <div className="relative flex items-center justify-center mb-5">
+            <div className="border-t border-white/10 w-full" />
+            <span className="bg-slate-900 px-3 text-[11px] text-slate-400 uppercase tracking-wider font-semibold shrink-0">
+              Or sign in with email
+            </span>
+            <div className="border-t border-white/10 w-full" />
+          </div>
+
           {/* Quick Demo Fill Button */}
           <button
             type="button"
             onClick={fillDemoAccount}
-            className="w-full mb-6 py-2.5 px-4 rounded-xl bg-violet-950/50 hover:bg-violet-900/50 border border-violet-500/40 text-violet-300 text-xs font-semibold flex items-center justify-center gap-2 transition"
+            className="w-full mb-6 py-2 px-4 rounded-xl bg-violet-950/40 hover:bg-violet-900/40 border border-violet-500/30 text-violet-300 text-xs font-semibold flex items-center justify-center gap-2 transition"
           >
-            <Zap className="w-4 h-4 text-amber-400" />
-            <span>Fill Seeded Demo Credentials (Alex Chen)</span>
+            <Zap className="w-3.5 h-3.5 text-amber-400" />
+            <span>Fill Demo Credentials (Alex Chen)</span>
           </button>
 
           {(localError || error) && (

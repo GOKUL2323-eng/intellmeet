@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Sparkles, ArrowRight, Lock, Mail, User, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
+import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { Logo } from '../components/Logo';
 
 export const SignUpPage: React.FC = () => {
@@ -56,6 +57,22 @@ export const SignUpPage: React.FC = () => {
         </div>
 
         <div className="rounded-2xl bg-slate-900/80 border border-white/10 p-8 shadow-2xl backdrop-blur-xl">
+          {/* Google Sign Up */}
+          <div className="mb-5">
+            <GoogleSignInButton
+              text="signup_with"
+              onSuccess={() => navigate('/dashboard')}
+              onError={(err) => setLocalError(err)}
+            />
+          </div>
+
+          <div className="relative flex items-center justify-center mb-5">
+            <div className="border-t border-white/10 w-full" />
+            <span className="bg-slate-900 px-3 text-[11px] text-slate-400 uppercase tracking-wider font-semibold shrink-0">
+              Or sign up with email
+            </span>
+            <div className="border-t border-white/10 w-full" />
+          </div>
           {(localError || error) && (
             <div className="mb-6 p-3.5 rounded-xl bg-rose-950/40 border border-rose-500/30 text-rose-300 text-xs flex flex-col gap-1.5">
               <div className="flex items-center gap-2.5">

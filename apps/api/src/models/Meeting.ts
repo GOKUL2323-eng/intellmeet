@@ -30,6 +30,10 @@ export interface IMeetingDocument extends Document {
   recordingUrl?: string;
   aiProcessingStatus: AIProcessingStatus;
   summaryId?: mongoose.Types.ObjectId;
+  provider?: 'native' | 'google_meet';
+  googleMeetUrl?: string;
+  googleMeetSpaceId?: string;
+  googleCalendarEventId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -129,6 +133,21 @@ const MeetingSchema = new Schema<IMeetingDocument>(
     summaryId: {
       type: Schema.Types.ObjectId,
       ref: 'MeetingSummary'
+    },
+    provider: {
+      type: String,
+      enum: ['native', 'google_meet'],
+      default: 'native',
+      index: true
+    },
+    googleMeetUrl: {
+      type: String
+    },
+    googleMeetSpaceId: {
+      type: String
+    },
+    googleCalendarEventId: {
+      type: String
     }
   },
   {

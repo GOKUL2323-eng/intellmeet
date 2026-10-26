@@ -12,6 +12,7 @@ interface AuthState {
 
   login: (email: string, pass: string) => Promise<void>;
   register: (email: string, pass: string, fullName: string) => Promise<void>;
+  loginWithGoogle: (credential: string) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   fetchWorkspaces: () => Promise<void>;
@@ -51,6 +52,34 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await get().fetchWorkspaces();
     } catch (err: any) {
       set({ error: err.message || 'Login failed', isLoading: false });
+      throw err;
+    }
+  },
+
+  loginWithGoogle: async (credential: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const data: any = await apiClient.post('/auth/google', { credential }, { timeoutMs: 15000 });
+      apiClient.setToken(data.accessToken);
+
+      if (data.refreshToken) {
+        apiClient.setRefreshToken(data.refreshToken);
+      }
+
+      if (data.workspace) {
+        apiClient.setWorkspaceId(data.workspace.id);
+      }
+
+      set({
+        user: data.user,
+        workspace: data.workspace,
+        isAuthenticated: true,
+        isLoading: false
+      });
+
+      await get().fetchWorkspaces();
+    } catch (err: any) {
+      set({ error: err.message || 'Google authentication failed', isLoading: false });
       throw err;
     }
   },

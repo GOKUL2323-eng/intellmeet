@@ -7,13 +7,15 @@ import {
   registerSchema,
   loginSchema,
   forgotPasswordSchema,
-  resetPasswordSchema
+  resetPasswordSchema,
+  googleAuthSchema
 } from '@intellmeet/shared';
 
 const router = Router();
 
 router.post('/register', authLimiter, validateBody(registerSchema), AuthController.register);
 router.post('/login', authLimiter, validateBody(loginSchema), AuthController.login);
+router.post('/google', authLimiter, validateBody(googleAuthSchema), AuthController.googleAuth);
 router.post('/refresh', authLimiter, AuthController.refresh);
 router.post('/logout', authLimiter, AuthController.logout);
 router.post('/forgot-password', authLimiter, validateBody(forgotPasswordSchema), AuthController.forgotPassword);

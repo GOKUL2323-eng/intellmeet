@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MicOff, Pin, PinOff, MonitorUp, Hand, Wifi, WifiOff } from 'lucide-react';
+import { MicOff, Pin, PinOff, MonitorUp, Hand, Wifi, WifiOff, Volume2 } from 'lucide-react';
 import { IParticipantState } from '../stores/meetingStore';
 
 interface Props {
@@ -33,6 +33,7 @@ export const ParticipantTile: React.FC<Props> = ({
 }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
 
   const stream = isLocal ? localStream : participant?.stream;
   const isMuted = isLocal ? localMuted : participant?.isMuted;
@@ -99,12 +100,19 @@ export const ParticipantTile: React.FC<Props> = ({
         await videoEl.play();
         if (isSubscribed) {
           setIsVideoLoaded(true);
+          setAutoplayBlocked(false);
         }
       } catch (err) {
+        if (isSubscribed && !isLocal) {
+          setAutoplayBlocked(true);
+        }
         // Unlock on first interaction if autoplay policy temporarily blocks
         const unlockAutoplay = () => {
           if (videoEl && isSubscribed) {
-            videoEl.play().then(() => setIsVideoLoaded(true)).catch(() => {});
+            videoEl.play().then(() => {
+              setIsVideoLoaded(true);
+              setAutoplayBlocked(false);
+            }).catch(() => {});
           }
           window.removeEventListener('click', unlockAutoplay);
           window.removeEventListener('touchstart', unlockAutoplay);
@@ -119,7 +127,7 @@ export const ParticipantTile: React.FC<Props> = ({
     return () => {
       isSubscribed = false;
     };
-  }, [stream, shouldRenderVideo, trackVersion]);
+  }, [stream, shouldRenderVideo, trackVersion, isLocal]);
 
   return (
     <div
@@ -142,6 +150,26 @@ export const ParticipantTile: React.FC<Props> = ({
           shouldRenderVideo ? (isVideoLoaded ? 'opacity-100' : 'opacity-90') : 'opacity-0 hidden'
         } ${isLocal && !isScreenSharing ? 'scale-x-[-1]' : ''}`}
       />
+
+      {/* Autoplay restriction fallback banner */}
+      {autoplayBlocked && !isLocal && (
+        <button
+          type="button"
+          onClick={() => {
+            if (videoRef.current) {
+              videoRef.current.play().then(() => {
+                setIsVideoLoaded(true);
+                setAutoplayBlocked(false);
+              }).catch(() => {});
+            }
+          }}
+          className="absolute inset-0 bg-slate-950/80 z-30 flex flex-col items-center justify-center p-4 text-center cursor-pointer transition hover:bg-slate-950/90 backdrop-blur-sm"
+        >
+          <Volume2 className="w-8 h-8 text-amber-400 mb-2 animate-bounce" />
+          <span className="text-xs font-bold text-white">Click to enable media stream</span>
+          <span className="text-[10px] text-slate-300 mt-1">Browser interaction is required to play incoming audio/video</span>
+        </button>
+      )}
 
       {/* Avatar Fallback when Camera is Off or Connecting */}
       {!shouldRenderVideo && (

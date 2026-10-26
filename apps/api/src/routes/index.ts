@@ -6,6 +6,7 @@ import meetingRoutes from './meeting.routes';
 import taskRoutes from './task.routes';
 import notificationRoutes from './notification.routes';
 import analyticsRoutes from './analytics.routes';
+import integrationRoutes from './integration.routes';
 import { config } from '../config/env';
 
 const router = Router();
@@ -30,5 +31,6 @@ router.use('/meetings', meetingRoutes);
 router.use('/tasks', taskRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/analytics', analyticsRoutes);
+router.use('/integrations', integrationRoutes);
 
 export default router;

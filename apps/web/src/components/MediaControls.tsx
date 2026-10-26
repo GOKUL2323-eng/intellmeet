@@ -14,6 +14,7 @@ import {
   Shield,
   Wifi,
   WifiOff,
+  RefreshCw,
   AlertTriangle
 } from 'lucide-react';
 import { useMeetingStore } from '../stores/meetingStore';
@@ -25,6 +26,9 @@ interface Props {
   onLeaveMeeting: () => void;
   onEndMeetingForEveryone?: () => void;
   onTriggerAISummary?: () => void;
+  onSwitchCamera?: (deviceId: string) => void;
+  availableCameras?: MediaDeviceInfo[];
+  currentCameraId?: string | null;
   isHost?: boolean;
   isCoHost?: boolean;
 }
@@ -36,6 +40,9 @@ export const MediaControls: React.FC<Props> = ({
   onLeaveMeeting,
   onEndMeetingForEveryone,
   onTriggerAISummary,
+  onSwitchCamera,
+  availableCameras,
+  currentCameraId,
   isHost = false,
   isCoHost = false
 }) => {
@@ -145,6 +152,24 @@ export const MediaControls: React.FC<Props> = ({
           >
             {isCameraOff ? <VideoOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <VideoIcon className="w-4 h-4 sm:w-5 sm:h-5" />}
           </button>
+
+          {/* Switch Camera Button (Visible when multi-camera detected) */}
+          {availableCameras && availableCameras.length > 1 && !isCameraOff && (
+            <button
+              onClick={() => {
+                const currentIndex = availableCameras.findIndex(c => c.deviceId === currentCameraId);
+                const nextDevice = availableCameras[(currentIndex + 1) % availableCameras.length];
+                if (nextDevice && onSwitchCamera) {
+                  onSwitchCamera(nextDevice.deviceId);
+                }
+              }}
+              className="w-8 h-8 rounded-lg bg-slate-800/90 hover:bg-slate-700 border border-white/10 text-slate-300 hover:text-white flex items-center justify-center transition shadow shrink-0"
+              title="Switch camera device"
+              aria-label="Switch Camera"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          )}
 
           {/* Screen Share Toggle */}
           <button
