@@ -64,31 +64,6 @@ export class AuthController {
     }
   }
 
-  static async googleAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const result = await AuthService.googleLogin({
-        credential: req.body.credential,
-        ipAddress: req.ip,
-        userAgent: req.headers['user-agent']
-      });
-
-      res.cookie('refreshToken', result.refreshToken, {
-        ...getRefreshTokenCookieOptions(),
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-      });
-
-      res.json({
-        message: 'Google authentication successful.',
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-        user: result.user,
-        workspace: result.workspace
-      });
-    } catch (err) {
-      next(err);
-    }
-  }
-
   static async refresh(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;

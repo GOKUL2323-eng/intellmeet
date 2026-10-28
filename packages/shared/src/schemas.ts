@@ -223,14 +223,3 @@ export const rejectParticipantSchema = z.object({
   reason: z.string().max(200).optional()
 });
 
-export const googleAuthSchema = z.object({
-  credential: z.string().min(1, 'Google credential token is required.')
-});
-
-export const createGoogleMeetingSchema = z.object({
-  title: z.string().min(2, 'Meeting title is required').max(120),
-  description: z.string().max(1000).optional(),
-  scheduledStartTime: z.string().datetime({ message: 'Invalid start time' }),
-  scheduledEndTime: z.string().datetime({ message: 'Invalid end time' })
-});
-

@@ -220,4 +220,24 @@ describe('IntellMeet Full Stack API & Security Test Suite', () => {
       expect(res.text).toContain('INTELLMEET WORKSPACE EXPORT');
     });
   });
+
+  describe('7. WebRTC ICE Servers Configuration Endpoint', () => {
+    it('GET /api/v1/meetings/ice-servers returns STUN/TURN server configuration', async () => {
+      const res = await request(app)
+        .get('/api/v1/meetings/ice-servers')
+        .set('Authorization', `Bearer ${authToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.iceServers).toBeDefined();
+      expect(Array.isArray(res.body.iceServers)).toBe(true);
+      expect(res.body.iceServers.length).toBeGreaterThan(0);
+      expect(res.body.iceServers[0].urls).toBeDefined();
+    });
+
+    it('allows guest users to fetch ice-servers for meeting lobbies without auth token', async () => {
+      const res = await request(app).get('/api/v1/meetings/ice-servers');
+      expect(res.status).toBe(200);
+      expect(res.body.iceServers).toBeDefined();
+    });
+  });
 });

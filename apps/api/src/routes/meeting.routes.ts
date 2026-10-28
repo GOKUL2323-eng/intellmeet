@@ -14,8 +14,7 @@ import {
   lockMeetingSchema,
   muteAllSchema,
   moderateParticipantSchema,
-  coHostAssignmentSchema,
-  createGoogleMeetingSchema
+  coHostAssignmentSchema
 } from '@intellmeet/shared';
 
 const router = Router();
@@ -44,7 +43,6 @@ router.use(authenticate);
 
 router.get('/', requireWorkspaceMember, MeetingController.list);
 router.post('/', requireWorkspaceMember, validateBody(createMeetingSchema), MeetingController.create);
-router.post('/google-meet', requireWorkspaceMember, validateBody(createGoogleMeetingSchema), MeetingController.createGoogleMeeting);
 
 router.get('/:meetingId', requireWorkspaceMember, MeetingController.getById);
 router.patch('/:meetingId', requireWorkspaceMember, validateBody(updateMeetingSchema), MeetingController.update);

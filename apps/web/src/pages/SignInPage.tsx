@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Sparkles, ArrowRight, Lock, Mail, AlertCircle, Zap } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
-import { GoogleSignInButton } from '../components/GoogleSignInButton';
 import { Logo } from '../components/Logo';
 
 export const SignInPage: React.FC = () => {
@@ -59,22 +58,7 @@ export const SignInPage: React.FC = () => {
 
         {/* Form Card */}
         <div className="rounded-2xl bg-slate-900/80 border border-white/10 p-8 shadow-2xl backdrop-blur-xl">
-          {/* Google Sign In Option */}
-          <div className="mb-5">
-            <GoogleSignInButton
-              text="signin_with"
-              onSuccess={() => navigate('/dashboard')}
-              onError={(err) => setLocalError(err)}
-            />
-          </div>
 
-          <div className="relative flex items-center justify-center mb-5">
-            <div className="border-t border-white/10 w-full" />
-            <span className="bg-slate-900 px-3 text-[11px] text-slate-400 uppercase tracking-wider font-semibold shrink-0">
-              Or sign in with email
-            </span>
-            <div className="border-t border-white/10 w-full" />
-          </div>
 
           {/* Quick Demo Fill Button */}
           <button

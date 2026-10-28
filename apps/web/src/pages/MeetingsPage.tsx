@@ -11,9 +11,7 @@ import {
   Sparkles,
   Play,
   X,
-  Users,
-  ShieldAlert,
-  ExternalLink
+  Users
 } from 'lucide-react';
 import { apiClient } from '../services/apiClient';
 import { useAuthStore } from '../stores/authStore';
@@ -38,15 +36,7 @@ export const MeetingsPage: React.FC = () => {
   const [defaultMute, setDefaultMute] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Google Meet Modal
-  const [showGoogleMeetModal, setShowGoogleMeetModal] = useState(false);
-  const [gmTitle, setGmTitle] = useState('');
-  const [gmDescription, setGmDescription] = useState('');
-  const [gmDate, setGmDate] = useState(new Date().toISOString().slice(0, 10));
-  const [gmTime, setGmTime] = useState('11:00');
-  const [gmError, setGmError] = useState<string | null>(null);
-  const [gmSubmitting, setGmSubmitting] = useState(false);
-  const [gmConnectUrl, setGmConnectUrl] = useState<string | null>(null);
+
 
   // Copied indicator
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
@@ -110,41 +100,6 @@ export const MeetingsPage: React.FC = () => {
     }
   };
 
-  const handleGoogleMeetSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!gmTitle) return;
-
-    try {
-      setGmSubmitting(true);
-      setGmError(null);
-      setGmConnectUrl(null);
-
-      const startDateTime = new Date(`${gmDate}T${gmTime}:00`);
-      const endDateTime = new Date(startDateTime.getTime() + 45 * 60 * 1000);
-
-      await apiClient.post('/meetings/google-meet', {
-        title: gmTitle,
-        description: gmDescription,
-        scheduledStartTime: startDateTime.toISOString(),
-        scheduledEndTime: endDateTime.toISOString()
-      });
-
-      setShowGoogleMeetModal(false);
-      setGmTitle('');
-      setGmDescription('');
-      fetchMeetings();
-    } catch (err: any) {
-      setGmError(err.message || 'Failed to create Google Meet space.');
-      if (err.message?.includes('not connected') || err.message?.includes('connect your Google account')) {
-        try {
-          const urlData: any = await apiClient.get('/integrations/google/connect-url');
-          if (urlData?.url) setGmConnectUrl(urlData.url);
-        } catch {}
-      }
-    } finally {
-      setGmSubmitting(false);
-    }
-  };
 
   const handleInstantMeeting = async () => {
     try {
@@ -202,17 +157,7 @@ export const MeetingsPage: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            onClick={() => setShowGoogleMeetModal(true)}
-            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-emerald-950/40 hover:bg-emerald-900/40 border border-emerald-500/30 text-emerald-300 font-semibold text-xs transition shadow-sm"
-            title="Create or schedule a Google Meet space"
-          >
-            <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-              <path fill="#34A853" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
-              <path fill="#ffffff" d="M9.5 8.5v7l6-3.5z"/>
-            </svg>
-            <span>New Google Meet</span>
-          </button>
+
           <button
             onClick={handleInstantMeeting}
             className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-white/10 text-slate-200 font-semibold text-xs transition"
@@ -278,24 +223,17 @@ export const MeetingsPage: React.FC = () => {
             >
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2.5">
-                  {m.provider === 'google_meet' ? (
-                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      <span>GOOGLE MEET</span>
-                    </span>
-                  ) : (
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        m.status === 'LIVE'
-                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 animate-pulse'
-                          : m.status === 'SCHEDULED'
-                          ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
-                          : 'bg-slate-700/50 text-slate-400'
-                      }`}
-                    >
-                      {m.status}
-                    </span>
-                  )}
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      m.status === 'LIVE'
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 animate-pulse'
+                        : m.status === 'SCHEDULED'
+                        ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                        : 'bg-slate-700/50 text-slate-400'
+                    }`}
+                  >
+                    {m.status}
+                  </span>
                   <h3 className="text-sm font-bold text-white">{m.title}</h3>
                 </div>
 
@@ -324,77 +262,40 @@ export const MeetingsPage: React.FC = () => {
 
               {/* Actions */}
               <div className="flex items-center gap-2 shrink-0">
-                {m.provider === 'google_meet' && m.googleMeetUrl ? (
-                  <>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(m.googleMeetUrl);
-                        setCopiedCode(m.meetingCode);
-                        setTimeout(() => setCopiedCode(null), 2500);
-                      }}
-                      className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-white/10 text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition"
-                      title="Copy Google Meet Link"
-                    >
-                      {copiedCode === m.meetingCode ? (
-                        <>
-                          <Check className="w-3.5 h-3.5 text-emerald-400" />
-                          <span className="text-emerald-400">Copied</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5" />
-                          <span>Copy Link</span>
-                        </>
-                      )}
-                    </button>
-                    <a
-                      href={m.googleMeetUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/25 transition flex items-center gap-1.5"
-                    >
-                      <span>Open Meet</span>
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => handleCopyInvite(m.meetingCode)}
-                      className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-white/10 text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition"
-                      title="Copy meeting join link"
-                    >
-                      {copiedCode === m.meetingCode ? (
-                        <>
-                          <Check className="w-3.5 h-3.5 text-emerald-400" />
-                          <span className="text-emerald-400">Copied</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5" />
-                          <span>Copy Link</span>
-                        </>
-                      )}
-                    </button>
+                <button
+                  onClick={() => handleCopyInvite(m.meetingCode)}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-white/10 text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition"
+                  title="Copy meeting join link"
+                >
+                  {copiedCode === m.meetingCode ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="text-emerald-400">Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Copy Link</span>
+                    </>
+                  )}
+                </button>
 
-                    {m.aiProcessingStatus === 'COMPLETED' && (
-                      <button
-                        onClick={() => handleOpenSummary(m.id)}
-                        className="px-3 py-1.5 rounded-lg bg-violet-600/20 text-violet-300 border border-violet-500/30 hover:bg-violet-600/30 text-xs font-semibold flex items-center gap-1.5 transition"
-                      >
-                        <Sparkles className="w-3.5 h-3.5" />
-                        <span>AI Summary</span>
-                      </button>
-                    )}
-
-                    <button
-                      onClick={() => navigate(`/lobby/${m.meetingCode}`)}
-                      className="px-4 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold shadow-md shadow-violet-600/25 transition"
-                    >
-                      {m.status === 'ENDED' ? 'Re-Enter' : 'Join'}
-                    </button>
-                  </>
+                {m.aiProcessingStatus === 'COMPLETED' && (
+                  <button
+                    onClick={() => handleOpenSummary(m.id)}
+                    className="px-3 py-1.5 rounded-lg bg-violet-600/20 text-violet-300 border border-violet-500/30 hover:bg-violet-600/30 text-xs font-semibold flex items-center gap-1.5 transition"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>AI Summary</span>
+                  </button>
                 )}
+
+                <button
+                  onClick={() => navigate(`/lobby/${m.meetingCode}`)}
+                  className="px-4 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold shadow-md shadow-violet-600/25 transition"
+                >
+                  {m.status === 'ENDED' ? 'Re-Enter' : 'Join'}
+                </button>
               </div>
             </div>
           ))
@@ -514,125 +415,6 @@ export const MeetingsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Google Meet Creation Modal */}
-      {showGoogleMeetModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-slate-900 border border-white/10 p-6 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                  <svg className="w-4 h-4" viewBox="0 0 24 24">
-                    <path fill="#34A853" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
-                    <path fill="#ffffff" d="M9.5 8.5v7l6-3.5z"/>
-                  </svg>
-                </div>
-                <h2 className="text-base font-bold text-white">Create Google Meet Space</h2>
-              </div>
-              <button
-                onClick={() => setShowGoogleMeetModal(false)}
-                className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {gmError && (
-              <div className="mb-4 p-3.5 rounded-xl bg-amber-950/40 border border-amber-500/30 text-amber-300 text-xs space-y-2">
-                <div className="flex items-center gap-2 font-semibold">
-                  <ShieldAlert className="w-4 h-4 shrink-0 text-amber-400" />
-                  <span>Google Meet Integration Notice</span>
-                </div>
-                <p className="text-slate-300 leading-relaxed">{gmError}</p>
-                {gmConnectUrl && (
-                  <div className="pt-1">
-                    <a
-                      href={gmConnectUrl}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow transition"
-                    >
-                      <span>Authorize Google Account</span>
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <form onSubmit={handleGoogleMeetSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Meeting Title *
-                </label>
-                <input
-                  type="text"
-                  value={gmTitle}
-                  onChange={(e) => setGmTitle(e.target.value)}
-                  placeholder="e.g. Cross-Functional Client Sync"
-                  required
-                  className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500/60"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Description / Agenda
-                </label>
-                <textarea
-                  value={gmDescription}
-                  onChange={(e) => setGmDescription(e.target.value)}
-                  placeholder="Agenda notes..."
-                  rows={2}
-                  className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500/60 resize-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Date</label>
-                  <input
-                    type="date"
-                    value={gmDate}
-                    onChange={(e) => setGmDate(e.target.value)}
-                    className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500/60"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Start Time</label>
-                  <input
-                    type="time"
-                    value={gmTime}
-                    onChange={(e) => setGmTime(e.target.value)}
-                    className="w-full bg-slate-800/60 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500/60"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowGoogleMeetModal(false)}
-                  className="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={gmSubmitting}
-                  className="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/30 disabled:opacity-50 flex items-center gap-1.5"
-                >
-                  {gmSubmitting ? (
-                    <span>Creating Space...</span>
-                  ) : (
-                    <>
-                      <span>Generate Google Meet</span>
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* AI Summary Modal */}
       {selectedSummary && (

@@ -17,8 +17,7 @@ export interface IUser {
   avatarUrl?: string;
   role: UserRole;
   timezone: string;
-  googleId?: string;
-  authProvider?: 'local' | 'google' | 'both';
+  authProvider?: 'local';
   createdAt: string;
   updatedAt: string;
 }
@@ -91,10 +90,6 @@ export interface IMeeting {
   recordingUrl?: string;
   aiProcessingStatus: AIProcessingStatus;
   summaryId?: string;
-  provider?: 'native' | 'google_meet';
-  googleMeetUrl?: string;
-  googleMeetSpaceId?: string;
-  googleCalendarEventId?: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -8,14 +8,7 @@ export interface IUserDocument extends Document {
   avatarUrl?: string;
   role: UserRole;
   timezone: string;
-  googleId?: string;
-  authProvider: 'local' | 'google' | 'both';
-  googleTokens?: {
-    accessToken: string;
-    refreshToken?: string;
-    expiresAt?: Date;
-    scope?: string;
-  };
+  authProvider: 'local';
   passwordResetToken?: string;
   passwordResetExpires?: Date;
   createdAt: Date;
@@ -46,21 +39,10 @@ const UserSchema = new Schema<IUserDocument>(
       type: String,
       default: ''
     },
-    googleId: {
-      type: String,
-      sparse: true,
-      index: true
-    },
     authProvider: {
       type: String,
-      enum: ['local', 'google', 'both'],
+      enum: ['local'],
       default: 'local'
-    },
-    googleTokens: {
-      accessToken: { type: String },
-      refreshToken: { type: String },
-      expiresAt: { type: Date },
-      scope: { type: String }
     },
     role: {
       type: String,
@@ -88,7 +70,6 @@ const UserSchema = new Schema<IUserDocument>(
         delete ret._id;
         delete ret.__v;
         delete ret.passwordHash;
-        delete ret.googleTokens;
         delete ret.passwordResetToken;
         delete ret.passwordResetExpires;
         return ret;

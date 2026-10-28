@@ -11,7 +11,6 @@ import { WorkspaceMembershipModel } from '../models/WorkspaceMembership';
 import { MeetingStatus } from '@intellmeet/shared';
 import { LiveKitService } from '../services/livekit.service';
 import { broadcastToMeeting } from '../sockets/socketHandler';
-import { GoogleMeetService } from '../services/googleMeet.service';
 import { config } from '../config/env';
 
 export class MeetingController {
@@ -528,26 +527,5 @@ export class MeetingController {
     }
 
     res.json({ iceServers });
-  }
-
-  static async createGoogleMeeting(req: Request, res: Response, next: NextFunction): Promise<void> {
-    try {
-      const workspaceId = req.workspaceId!;
-      const userId = req.user!._id.toString();
-
-      const meeting = await GoogleMeetService.createGoogleMeeting(userId, workspaceId, {
-        title: req.body.title,
-        description: req.body.description,
-        scheduledStartTime: new Date(req.body.scheduledStartTime),
-        scheduledEndTime: new Date(req.body.scheduledEndTime)
-      });
-
-      res.status(201).json({
-        message: 'Google Meet meeting space successfully scheduled.',
-        meeting
-      });
-    } catch (err) {
-      next(err);
-    }
   }
 }
